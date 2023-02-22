@@ -19,8 +19,7 @@ int main()
     
     LBM lb;
     std::cout << "Memory allocated!" << std::endl;
-    GEOMETRY geom;
-    geom.cylinder_generator(lb);
+    cylinder_generator(lb);
     std::cout << "Geometry Created!" << std::endl;
     
     lb.Init();

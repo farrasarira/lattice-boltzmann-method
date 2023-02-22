@@ -27,6 +27,7 @@
     #define TYPE_S 1 // (stationary or moving) solid boundary
     #define TYPE_E 2 // equilibrium boundary (inflow/outflow)
     #define TYPE_T 3 // temperature boundary
+    #define TYPE_P 4 // periodic boundary condition
 
 
     // Parameter
