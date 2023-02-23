@@ -7,6 +7,7 @@ void cylinder_generator(LBM &lb)
     double cx=dx*(Nx/5);    // x-center of cylinder
     double cy=dx*(Ny/2);    // y-center of cylinder
 
+    #pragma omp parallel for
     for(int i=0; i<Nx; i++){
         for(int j=0; j<Ny; j++){
             double rx=dx*i-dx*0.5;

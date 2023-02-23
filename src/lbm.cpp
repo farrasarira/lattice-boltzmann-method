@@ -11,8 +11,10 @@ LBM::LBM()
     }
 }
 
+
 void LBM::Init()
 {
+    #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
     {
         for(int j = 0; j < Ny; ++j)
@@ -24,24 +26,53 @@ void LBM::Init()
                 fluid1[i][j].v = 0;
             }
             
-            double uu = pow(fluid1[i][j].u,2)+pow(fluid1[i][j].v,2);
+            #ifdef LBM_ENTROPY
+                    double zeta = GAS_CONST * TEMP;
+                    for (int l = 0; l < 9; ++l)
+                    {
+                        double feq = fluid1[i][j].rho;
+                            if (cx[l] == 0) feq *= (1 - (fluid1[i][j].u*fluid1[i][j].u + zeta));
+                            else if (cx[l] == 1) feq *= (fluid1[i][j].u + (fluid1[i][j].u*fluid1[i][j].u + zeta))/2;
+                            else if (cx[l] == -1) feq*= (-fluid1[i][j].u + (fluid1[i][j].u*fluid1[i][j].u + zeta))/2;
+                        
+                        #if DIM == 2 || DIM == 3
+                            if (cy[l] == 0) feq *= (1 - (fluid1[i][j].v*fluid1[i][j].v + zeta));
+                            else if (cy[l] == 1) feq *= (fluid1[i][j].v + (fluid1[i][j].v*fluid1[i][j].v + zeta))/2;
+                            else if (cy[l] == -1) feq*= (-fluid1[i][j].v + (fluid1[i][j].v*fluid1[i][j].v + zeta))/2;
+                        #endif
 
-            for (int l = 0; l < 9; ++l)
-            {
-                double cu=cx[l]*fluid1[i][j].u+cy[l]*fluid1[i][j].v;
-                double feq=w[l]*fluid1[i][j].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
-                fluid1[i][j].f[l]=feq;
-                fluid1[i][j].fpc[l]=feq;
-            }
+                        #if DIM == 3
+                            if (cz[l] == 0) feq *= (1 - (fluid1[i][j].w*fluid1[i][j].w + zeta));
+                            else if (cz[l] == 1) feq *= (fluid1[i][j].w + (fluid1[i][j].w*fluid1[i][j].w + zeta))/2;
+                            else if (cz[l] == -1) feq*= (-fluid1[i][j].w + (fluid1[i][j].w*fluid1[i][j].w + zeta))/2;
+                        #endif
+                        
+
+                        fluid1[i][j].fpc[l]=feq;
+                        fluid1[i][j].f[l]=feq;
+                    }
+
+                #else
+                    double uu = pow(fluid1[i][j].u,2)+pow(fluid1[i][j].v,2);
+
+                    for (int l = 0; l < 9; ++l)
+                    {
+                        double cu=cx[l]*fluid1[i][j].u+cy[l]*fluid1[i][j].v;
+                        double feq=w[l]*fluid1[i][j].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
+                        fluid1[i][j].fpc[l]=feq;
+                        fluid1[i][j].f[l]=feq;
+                    }
+                #endif
         }
     }
 }
 
 void LBM::Collide_BGK()
 {
-    for (int i = 0; i < Nx; ++i)
+    #pragma omp parallel for
+    for (int i = 1; i < Nx-1; ++i)
     {
-        for (int j = 0; j < Ny; ++j)
+        for (int j = 1; j < Ny-1; ++j)
         {
             if (fluid1[i][j].type==TYPE_F)
             {
@@ -56,15 +87,45 @@ void LBM::Collide_BGK()
                 // Macroscopic quantities
                 double u=rho_u/rho;
                 double v=rho_v/rho;
-                // Relaxation
-                // Population in post-collision state: fpc
-                double uu=u*u+v*v;
-                for (int l = 0; l < 9; ++l){
-                    double cu=cx[l]*u+cy[l]*v;
-                    double feq=w[l]*rho*(1.0+3.0*cu+4.5*(cu*cu)-1.5*uu);
-                    fluid1[i][j].fpc[l]=(1.0-omega)*fluid1[i][j].f[l]+omega*feq;
-                    fluid1[i][j].f[l]=fluid1[i][j].fpc[l];
-                }
+                
+                #ifdef LBM_ENTROPY
+                    double zeta = GAS_CONST * TEMP;
+                    for (int l = 0; l < 9; ++l)
+                    {
+                        double feq = rho;
+                            if (cx[l] == 0) feq *= (1 - (u*u + zeta));
+                            else if (cx[l] == 1) feq *= (u + (u*u + zeta))/2;
+                            else if (cx[l] == -1) feq*= (-u + (u*u + zeta))/2;
+                        
+                        #if DIM == 2 || DIM == 3
+                            if (cy[l] == 0) feq *= (1 - (v*v + zeta));
+                            else if (cy[l] == 1) feq *= (v + (v*v + zeta))/2;
+                            else if (cy[l] == -1) feq*= (-v + (v*v + zeta))/2;
+                        #endif
+
+                        #if DIM == 3
+                            if (cz[l] == 0) feq *= (1 - (w*w + zeta));
+                            else if (cz[l] == 1) feq *= (w + (w*w + zeta))/2;
+                            else if (cz[l] == -1) feq*= (-w + (w*w + zeta))/2;
+                        #endif
+                        
+
+                        fluid1[i][j].fpc[l]=(1.0-omega)*fluid1[i][j].f[l]+omega*feq;
+                        fluid1[i][j].f[l]=fluid1[i][j].fpc[l];
+                    }
+
+                #else
+                    double uu = pow(u,2)+pow(v,2);
+
+                    for (int l = 0; l < 9; ++l)
+                    {
+                        double cu=cx[l]*u+cy[l]*v;
+                        double feq=w[l]*rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
+                        fluid1[i][j].fpc[l]=(1.0-omega)*fluid1[i][j].f[l]+omega*feq;
+                        fluid1[i][j].f[l]=fluid1[i][j].fpc[l];
+                    }
+                #endif
+
             }
         }
     } 
@@ -72,6 +133,7 @@ void LBM::Collide_BGK()
 
 void LBM::Streaming()
 {
+    #pragma omp parallel for
     for(int i=1; i<Nx-1; ++i)
     {
         for(int j=1; j<Ny-1; ++j)
@@ -94,6 +156,7 @@ void LBM::Streaming()
 
 void LBM::BC_Noslip()
 {
+    #pragma omp parallel for
     for (int i = 0; i < Nx; ++i)
     {
         // Ymin plane
@@ -110,6 +173,7 @@ void LBM::BC_Noslip()
 
 void LBM::Quantity()
 {
+    #pragma omp parallel for
     for (int i = 0; i < Nx; ++i)
     {
         for (int j = 0; j < Ny; ++j)

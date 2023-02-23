@@ -11,12 +11,26 @@
     #define T0 1.0              // Temperature high
     #define cs 1.0/sqrt(3.0)    // Lattice sound speed
 
+    // ################# LBM Model ####################
+     #define LBM_ENTROPY      // LBM model based on entropy
+    // #define LBM_CONV            // Conventional LBM
+
     // ################ Velocity Set ##################
     //#define D1Q3 // choose D1Q3 velocity set for 1D;
     #define D2Q9 // choose D2Q9 velocity set for 2D; 
     //#define D3Q15 // choose D3Q15 velocity set for 3D;
     //#define D3Q19 // choose D3Q19 velocity set for 3D; 
     //#define D3Q27 // choose D3Q27 velocity set for 3D;
+
+    // ################## Dimension ###################
+    #if defined D1Q3
+        #define DIM 1
+    #elif defined D2Q9
+        #define DIM 2
+    #else
+        #define DIM 3
+    #endif
+
 
     // ######### Single/Multicomponent flow ###########
     #define SCF // choose singlecomponent flow
@@ -33,11 +47,14 @@
     // Parameter
     #define Th 20.0     // Temperature high [K or C]
     #define Tc 0.0      // Temperature low [K or C]
-    #define Pr 0.71     // Prandtl number: tỷ số giữa độ khuếch tán xung lượng và độ khuếch tán nhiệt
-    #define Re 10000.0   // Reynolds number
+    #define Pr 0.71     // Prandtl number (rasio difusitas momentum dan konduktifitas termal)
+    #define Re 100.0   // Reynolds number
     #define Ra 100000.0 // Rayleigh number
     #define beta 0.021  // Độ giãn nở nhiệt [K^-1]
     #define nu 0.002    // Kinetic viscosity
+    #define GAS_CONST 1
+    #define TEMP 0.4
+
 
     extern const int Nx ;
     extern const int Ny ;

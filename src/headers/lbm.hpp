@@ -22,8 +22,13 @@
             // constructor
             LBM();
 
+            // initialize
             void Init();        // initialize equilibrium           
-            void Collide_BGK(); // BGK Collision
+            
+            // collision operator
+            void Collide_BGK(); // BGK collision
+            void Collide_SMD(); // Stefan-Maxwell Diffusion collision 
+
             void Streaming();   // stream
             void BC_Noslip();   // no slip boundary condition
             void Quantity();    // calculate quantity

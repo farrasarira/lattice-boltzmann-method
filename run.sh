@@ -1,2 +1,6 @@
 #!/bin/bash
-nohup ./LBM > out.LBM.txt &
+#SBATCH --nodes=1
+#SBATCH --ntasks=8
+#SBATCH --time=24:00:00
+
+./LBM > out.LBM.txt &
