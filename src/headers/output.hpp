@@ -4,5 +4,6 @@
     #include "lbm.hpp"
 
     void OutputVTK(int &nout, LBM &lb);
+    void printLogo();
     
 #endif

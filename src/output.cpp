@@ -1,9 +1,12 @@
 
-#include "./headers/lbm.hpp"
+#include "./headers/output.hpp"
+#include <stdio.h>
 
 void OutputVTK(int &nout, LBM &lb)
 {
-    int Nz = 1;
+    int Nx = lb.getNx();
+    int Ny = lb.getNy();
+    int Nz = lb.getNz();
 	int		i,j,k;
 	char	filename[128];
 	FILE	*fp;
@@ -42,7 +45,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.fluid1[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -52,8 +55,8 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j].u; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.fluid1[i][j].v; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.fluid1[i][j][k].u; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.fluid1[i][j][k].v; fwrite(&val32,sizeof(float),1,fp);
 				val32=0.0; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
@@ -65,7 +68,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(int)lb.fluid1[i][j].type; fwrite(&val32,sizeof(int),1,fp);
+				val32=(int)lb.fluid1[i][j][k].type; fwrite(&val32,sizeof(int),1,fp);
 			}
 		}
 	}
@@ -86,4 +89,19 @@ void OutputVTK(int &nout, LBM &lb)
 	fprintf(fp,"</VTKFile>\n");
 
 	fclose(fp);
+}
+
+
+void printLogo()
+{
+	std::cout << R"(
+             _       ____   __  __ 
+            | |     |  _ \ |  \/  |
+            | |     | |_) || \  / |
+            | |     |  _ < | |\/| |
+            | |____ | |_) || |  | |
+            |______||____/ |_|  |_|
+    )";
+    
+    std::cout << std :: endl << "      - Flow Diagnostics Laboratory ITB - " << std::endl << std::endl;
 }
