@@ -1,39 +1,38 @@
 #include<iostream>
 
 #include "./headers/lbm.hpp"
-#include "./headers/geometry.hpp"
+#include "./headers/setup.hpp"
 #include "./headers/output.hpp"
-#include <omp.h>
+#include<iostream>
+
 
 int main()
 {
-    std::cout << R"(
-             _       ____   __  __ 
-            | |     |  _ \ |  \/  |
-            | |     | |_) || \  / |
-            | |     |  _ < | |\/| |
-            | |____ | |_) || |  | |
-            |______||____/ |_|  |_|
-    )";
+    printLogo();
+
+    LBM lb = main_setup();    // create LBM object
     
-    std::cout << std :: endl << "      - Flow Diagnostics Laboratory ITB - " << std::endl << std::endl;
-    
-    LBM lb;
-    cylinder_generator(lb);
-    
-    lb.Init();
+    lb.Init();  // initialize the distribution function 
 
     int step = 0;
-    OutputVTK(step, lb);
+    int nout = 0;
+    int tend = 1000000;
+    int tout = 100;
+
+    OutputVTK(step, lb);       
 
     for (step = 1; step < tend; ++step)
     {
-        std::cout << "Step : " << step << std::endl;
-        lb.Collide_BGK();
-        lb.Streaming();
-        lb.BC_Noslip();
-        lb.Quantity();
-        OutputVTK(step, lb);
+        lb.Collide_BGK();   // collision step
+        lb.Streaming();     // streaming step
+        lb.BC_Noslip();     // no slip boundary condition
+        if (step >= nout*tout)
+        {
+            lb.Quantity();
+            OutputVTK(step, lb);
+            std::cout << "Step : " << step << std::endl;
+            ++nout;
+        }
     }
 
     return 0;
