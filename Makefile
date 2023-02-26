@@ -15,7 +15,7 @@ $(TARGET): $(OBJECT)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	-mkdir -p $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -o $@ -c $< 
+	$(CXX) $(CXXFLAGS) -o $@ -c $< $(pkg-config --cflags --libs cantera)
 
 .PHONY: clean
 clean: 
