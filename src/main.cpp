@@ -10,28 +10,28 @@ int main()
 {
     printLogo();
 
-    LBM lb = main_setup();    // create LBM object
-    
-    lb.Init();  // initialize the distribution function 
-
+    // create LBM object
+    LBM lb = main_setup();  
+    std::cout << "Masuk" << std::endl;
+    // initialize the distribution function 
+    lb.Init();  
+    //std::cout << "Init Selesai" << std::endl;
+    // initialize time step & Save the macroscopic at t=0
     int step = 0;
-    int nout = 0;
-    int tend = 1000000;
-    int tout = 100;
-
     OutputVTK(step, lb);       
 
-    for (step = 1; step < tend; ++step)
+    for (step = 1; step < NSTEP; ++step)
     {
         lb.Collide_BGK();   // collision step
-        lb.Streaming();     // streaming step
-        lb.BC_Noslip();     // no slip boundary condition
-        if (step >= nout*tout)
+        //std::cout << "Collision selesai" << std::endl;
+        lb.Streaming();     // streaming step & BC
+        //std::cout << "Streaming selesai" << std::endl;
+
+        if (step % TOUT == 0)
         {
-            lb.Quantity();
-            OutputVTK(step, lb);
+            lb.Quantity();       // Calculate macroscopic quantity
+            OutputVTK(step, lb); // Sace the macroscopic quantity
             std::cout << "Step : " << step << std::endl;
-            ++nout;
         }
     }
 
