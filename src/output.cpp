@@ -91,6 +91,106 @@ void OutputVTK(int &nout, LBM &lb)
 	fclose(fp);
 }
 
+void OutputKeEns(LBM &lb)
+{	
+	double e_kinetic = 0;
+	double enstro = 0;
+	double uu = 0 ;
+	double vort = 0;
+
+	for (int i = 0; i < lb.getNx(); i++)
+	{
+		for (int j = 0; j < lb.getNy(); j++)
+		{
+			for (int k = 0; k < lb.getNz(); k++)
+			{
+				if (lb.fluid1[i][j][k].type == TYPE_F)
+				{ 
+					uu = lb.fluid1[i][j][k].u*lb.fluid1[i][j][k].u + lb.fluid1[i][j][k].v*lb.fluid1[i][j][k].v + lb.fluid1[i][j][k].w*lb.fluid1[i][j][k].w;
+					e_kinetic = e_kinetic + lb.fluid1[i][j][k].rho * uu;
+					
+					int i_a = i + 1;
+					int i_b = i - 1;
+					int j_a = j + 1;
+					int j_b = j - 1;
+					int k_a = k + 1;
+					int k_b = k - 1;
+
+					if (i_b < 1) i_b = lb.getNx()-2;
+					else if(i_a > lb.getNx()-2) i_a = 1;
+
+					if (j_b < 1) j_b = lb.getNy()-2;
+					else if(j_a > lb.getNy()-2) j_a = 1;
+
+					if (k_b < 1) k_b = lb.getNz()-2;
+					else if(k_a > lb.getNz()-2) k_a = 1;
+					
+
+					double uy = (lb.fluid1[i][j_a][k].u - lb.fluid1[i][j_b][k].u) / 2;
+					double uz = (lb.fluid1[i][j][k_a].u - lb.fluid1[i][j][k_b].u) / 2;
+					
+					double vx = (lb.fluid1[i_a][j][k].v - lb.fluid1[i_b][j][k].v) / 2;
+					double vz = (lb.fluid1[i][j][k_a].v - lb.fluid1[i][j][k_b].v) / 2;
+
+					double wx = (lb.fluid1[i_a][j][k].w - lb.fluid1[i_b][j][k].w) / 2;
+					double wy = (lb.fluid1[i][j_a][k].w - lb.fluid1[i][j_b][k].w) / 2;
+
+					vort = (wy-vz)*(wy-vz) + (uz-wx)*(uz-wx) + (vx-uy)*(vx-uy);
+					enstro = enstro + lb.fluid1[i][j][k].rho * vort;
+				}
+			}
+		}
+	}
+	
+	std::cout << "kinetic e	= " << e_kinetic << std::endl;
+	std::cout << "enstrophy	= " << enstro << std::endl;
+	
+
+}
+
+void calcError(int &t,LBM &lb)
+{
+	double kx = 2.0*M_PI/NX;
+	double ky = 2.0*M_PI/NY;
+
+	double ua = 0.0;
+	double va = 0.0;
+
+	double sumue2 = 0.0;
+	double sumve2 = 0.0;
+
+	double sumua2 = 0.0;
+	double sumva2 = 0.0;
+
+	double td = 1.0/(NU*(kx*kx+ky*ky));
+
+	for (int i = 0; i < lb.getNx(); i++)
+	{
+		for (int j = 0; j < lb.getNy(); j++)
+		{
+			for (int k = 0; k < lb.getNz(); k++)
+			{
+				if (lb.fluid1[i][j][k].type == TYPE_F)
+				{
+					double X = i ;
+					double Y = j ;
+					ua =-0.04 * cos(kx*X) * sin(ky*Y) *exp(-1.0*t/td);
+					va = 0.04 * sin(kx*X) * cos(ky*Y) *exp(-1.0*t/td);
+
+					sumue2 += (lb.fluid1[i][j][k].u - ua) * (lb.fluid1[i][j][k].u - ua);
+					sumve2 += (lb.fluid1[i][j][k].v - va) * (lb.fluid1[i][j][k].v - va);
+					
+					sumua2 += ua * ua;
+					sumva2 += va * va;
+				}
+			}
+		}
+	}
+
+	std::cout << "u error		= " << sqrt(sumue2/sumua2) << std::endl;
+	std::cout << "v error		= " << sqrt(sumve2/sumva2) << std::endl; 
+
+}
 
 void printLogo()
 {

@@ -9,6 +9,7 @@ LBM::LBM(int Nx, int Ny, int Nz, double nu)
     this->Nz = Nz + 2;
     this->nu = nu;
     tau =  0.5 + 3 * nu;
+    std::cout << "tau       : " << tau << std::endl;
     omega = 1.0/tau;
     // allocate memory for lattice
     fluid1 = new LATTICE **[this->Nx];
@@ -61,12 +62,12 @@ void LBM::Init()
                         }
 
                     #else
-                        double uu = pow(fluid1[i][j][k].u,2)+pow(fluid1[i][j][k].v,2)+ pow(fluid1[i][j][k].w,2);
+                        double uu = fluid1[i][j][k].u*fluid1[i][j][k].u + fluid1[i][j][k].v*fluid1[i][j][k].v + fluid1[i][j][k].w*fluid1[i][j][k].w;
 
                         for (int l = 0; l < npop; ++l)
                         {
-                            double cu=cx[l]*fluid1[i][j][k].u + cy[l]*fluid1[i][j][k].v + cz[l]*fluid1[i][j][k].w;
-                            double feq=wi[l]*fluid1[i][j][k].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
+                            double cu = cx[l]*fluid1[i][j][k].u + cy[l]*fluid1[i][j][k].v + cz[l]*fluid1[i][j][k].w;
+                            double feq = wi[l]*fluid1[i][j][k].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
                             fluid1[i][j][k].fpc[l]=feq;
                             fluid1[i][j][k].f[l]=feq;
                         }
@@ -92,10 +93,11 @@ void LBM::Collide_BGK()
                     double rho_u=0.0;
                     double rho_v=0.0;
                     double rho_w=0.0;
-                    double rho_E=0.0; // NOT FINISHED YET
+                    //double rho_E=0.0; // NOT FINISHED YET
                                 
-                    for (int l = 0; l < npop; ++l){
-                        rho+=fluid1[i][j][k].f[l];
+                    for (int l = 0; l < npop; ++l)
+                    {
+                        rho  +=fluid1[i][j][k].f[l];
                         rho_u+=fluid1[i][j][k].f[l]*cx[l];
                         rho_v+=fluid1[i][j][k].f[l]*cy[l];
                         rho_w+=fluid1[i][j][k].f[l]*cz[l];
@@ -133,13 +135,13 @@ void LBM::Collide_BGK()
                         }
 
                     #else
-                        double uu = pow(u,2)+pow(v,2);
+                        double uu = u*u + v*v + w*w;
 
                         for (int l = 0; l < npop; ++l)
                         {
                             double cu=cx[l]*u+cy[l]*v+cz[l]*w;
                             double feq=wi[l]*rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
-                            fluid1[i][j][k].fpc[l]=(1.0-omega)*fluid1[i][j][k].f[l]+omega*feq;
+                            fluid1[i][j][k].fpc[l]=(1.0-omega)*fluid1[i][j][k].f[l] + omega*feq;
                         }
                     #endif
 
@@ -151,6 +153,7 @@ void LBM::Collide_BGK()
 
 void LBM::Streaming()
 {
+    int i_nb, j_nb, k_nb;
     #pragma omp parallel for
     for(int i=0; i<Nx; ++i)
     {
@@ -160,12 +163,12 @@ void LBM::Streaming()
             {
                 if(fluid1[i][j][k].type==TYPE_F)
                 {
-                    int i_nb, j_nb, k_nb;
                     for (int l=0; l < npop; ++l)
                     {
                         i_nb = i - cx[l];
                         j_nb = j - cy[l];
                         k_nb = k - cz[l];
+
                         //---- Solid Boundary Condition ----------------------
                         if(fluid1[i_nb][j_nb][k_nb].type==TYPE_S)
                         {
@@ -178,6 +181,19 @@ void LBM::Streaming()
                         }
                         else //---- Periodic Boundary Condition --------------------
                         {
+                            /*
+                            if (i_nb < 1) i_nb = Nx-2;
+                            else if(i_nb > Nx-2) i_nb = 1;
+
+                            if (j_nb < 1) j_nb = Ny-2;
+                            else if(j_nb > Ny-2) j_nb = 1;
+
+                            if (k_nb < 1) k_nb = Nz-2;
+                            else if(k_nb > Nz-2) k_nb = 1;
+
+                            fluid1[i][j][k].f[l] = fluid1[i_nb][j_nb][k_nb].fpc[l];*/
+
+                            
                             i_nb = ((i_nb - 1 + (Nx-2)) % (Nx-2)) + 1;
                             j_nb = ((j_nb - 1 + (Ny-2)) % (Ny-2)) + 1;
                             k_nb = ((k_nb - 1 + (Nz-2)) % (Nz-2)) + 1;
@@ -229,4 +245,3 @@ void LBM::Quantity()
         }
     }
 }
-
