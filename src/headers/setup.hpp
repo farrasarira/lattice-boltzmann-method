@@ -58,7 +58,7 @@
         LBM lb(NX,NY,NZ,NU);
         int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
 
-        const double u_max = RE * NU / NX;    // maximum initial velocity
+        const double u_max = RE * NU / (NX/(2.0*M_PI));    // maximum initial velocity
         std::cout << "umax      : " << u_max << std::endl;
         double periodicity = 1.0;
         const double a = (double)NX/periodicity;
@@ -81,7 +81,7 @@
                         lb.fluid1[i][j][k].u =  u_max * sin(2.0*M_PI/a*(double)i) * cos(2.0*M_PI/b*(double)j) * cos(2.0*M_PI/c*(double)k);
                         lb.fluid1[i][j][k].v = -u_max * cos(2.0*M_PI/a*(double)i) * sin(2.0*M_PI/b*(double)j) * cos(2.0*M_PI/c*(double)k);
                         lb.fluid1[i][j][k].w = 0.0;
-                        lb.fluid1[i][j][k].rho = 1.0 - u_max*u_max * 3.0/4.0 * (cos(4.0*M_PI/a*(double)i) + cos(4.0*M_PI/b*(double)j)) * (cos(4.0*M_PI/c*(double)k) + 2);
+                        lb.fluid1[i][j][k].rho = 1.0 - u_max*u_max * 3.0/16.0 * (cos(4.0*M_PI/a*(double)i) + cos(4.0*M_PI/b*(double)j)) * (cos(4.0*M_PI/c*(double)k) + 2);
                         
                     }
                 }
