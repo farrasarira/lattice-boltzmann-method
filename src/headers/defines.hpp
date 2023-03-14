@@ -9,15 +9,15 @@
     // ################ Flow Cases ####################
     // Choose one of the following Flow Cases
     //#define CYLINDER_2D
-    //#define TAYLOR_GREEN_3D
+    #define TAYLOR_GREEN_3D
     //#define TAYLOR_GREEN_2D
     //#define CHANNEL_FLOW_3D
-    #define CYLINDER_3D
+    //#define CYLINDER_3D
 
     // ############# Flow Parameters ##################
     // input the flow parameters
-    #define RE 200        // Reynolds number
-    #define NU 0.0075  // Kinetic viscosity
+    #define RE 1600        // Reynolds number
+    #define NU 0.002984  // Kinetic viscosity
     #define TEMP 0.4    // Temperature
     #define rho0 1.0            // Density
     #define T0 1.0              // Temperature high
@@ -26,8 +26,8 @@
     #define GAS_CONST 0.8
 
     // ########## Simulation Time & Output ############
-    #define NSTEP 20000   // Maximum time step, in Lattice time unit
-    #define TOUT 100    // Interval of time step to save the macroscopic quantity
+    #define NSTEP 25000   // Maximum time step, in Lattice time unit
+    #define TOUT 100      // Interval of time step to save the macroscopic quantity
 
     // ############# Physical Quantity ################
     #define BCXM  0.0   
@@ -41,8 +41,8 @@
     #define dz 1
     #define dt 1
     #define NX 300
-    #define NY 150
-    #define NZ 150
+    #define NY 300
+    #define NZ 300
        
 
     // ################# LBM Model ####################

@@ -91,7 +91,7 @@ void OutputVTK(int &nout, LBM &lb)
 	fclose(fp);
 }
 
-void OutputKeEns(LBM &lb)
+void OutputKeEns(int &step, LBM &lb)
 {	
 	double e_kinetic = 0;
 	double enstro = 0;
@@ -142,8 +142,9 @@ void OutputKeEns(LBM &lb)
 		}
 	}
 	
-	std::cout << "kinetic e	= " << e_kinetic << std::endl;
-	std::cout << "enstrophy	= " << enstro << std::endl;
+	std::cout << step << ",";
+	std::cout << e_kinetic << ",";
+	std::cout << enstro << std::endl;
 	
 
 }
