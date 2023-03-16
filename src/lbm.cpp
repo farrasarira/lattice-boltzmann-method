@@ -26,6 +26,8 @@ LBM::LBM(int Nx, int Ny, int Nz, double nu)
 
 void LBM::Init()
 {
+    #ifdef LBM_ENTROPY
+
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
     {
@@ -34,48 +36,78 @@ void LBM::Init()
             for(int k = 0; k < Nz; ++k)
             {    
                 if (fluid1[i][j][k].type == TYPE_F || fluid1[i][j][k].type == TYPE_E)     
-                {    
-                    #ifdef LBM_ENTROPY
-                        double zeta = GAS_CONST * TEMP;
-                        for (int l = 0; l < npop; ++l)
-                        {
-                            double feq = fluid1[i][j][k].rho;
-                                if (cx[l] == 0) feq *= (1 - (fluid1[i][j][k].u*fluid1[i][j][k].u + zeta));
-                                else if (cx[l] == 1) feq *= (fluid1[i][j][k].u + (fluid1[i][j][k].u*fluid1[i][j][k].u + zeta))/2;
-                                else if (cx[l] == -1) feq*= (-fluid1[i][j][k].u + (fluid1[i][j][k].u*fluid1[i][j][k].u + zeta))/2;
+                {   
+                    for (int l = 0; l < npop; ++l)
+                    {
+                        double feq = fluid1[i][j][k].rho;
+                        double P = 0.0;
+                        
+                            double eps = fluid1[i][j][k].u;
+                            if (i > Nx - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].u,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].u,3)) - 4*(fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*pow(fluid1[i-1][j][k].u,3)) + (fluid1[i-2][j][k].rho*fluid1[i-2][j][k].u*(1-3*fluid1[i-2][j][k].gas_const*fluid1[i-2][j][k].temp)-fluid1[i-2][j][k].rho*pow(fluid1[i-2][j][k].u,3)))/(2*dx);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].u,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(-3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].u,3)) + 4*(fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*pow(fluid1[i+1][j][k].u,3)) - (fluid1[i+2][j][k].rho*fluid1[i+2][j][k].u*(1-3*fluid1[i+2][j][k].gas_const*fluid1[i+2][j][k].temp)-fluid1[i+2][j][k].rho*pow(fluid1[i+2][j][k].u,3)))/(2*dx);
                             
-                            #if NDIM == 2 || NDIM == 3
-                                if (cy[l] == 0) feq *= (1 - (fluid1[i][j][k].v*fluid1[i][j][k].v + zeta));
-                                else if (cy[l] == 1) feq *= (fluid1[i][j][k].v + (fluid1[i][j][k].v*fluid1[i][j][k].v + zeta))/2;
-                                else if (cy[l] == -1) feq*= (-fluid1[i][j][k].v + (fluid1[i][j][k].v*fluid1[i][j][k].v + zeta))/2;
-                            #endif
-
-                            #if NDIM == 3
-                                if (cz[l] == 0) feq *= (1 - (fluid1[i][j][k].w*fluid1[i][j][k].w + zeta));
-                                else if (cz[l] == 1) feq *= (fluid1[i][j][k].w + (fluid1[i][j][k].w*fluid1[i][j][k].w + zeta))/2;
-                                else if (cz[l] == -1) feq*= (-fluid1[i][j][k].w + (fluid1[i][j][k].w*fluid1[i][j][k].w + zeta))/2;
-                            #endif
+                            if (cx[l] == 0) feq *= (1 - P);
+                            else if (cx[l] == 1) feq *= (eps+P)/2;
+                            else if (cx[l] == -1) feq*= (-eps+P)/2;
+                        
+                        #if NDIM == 2 || NDIM == 3
+                            eps = fluid1[i][j][k].v;
+                            if (j > Ny - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].v,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].v,3)) - 4*(fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*pow(fluid1[i][j-1][k].v,3)) + (fluid1[i][j-2][k].rho*fluid1[i][j-2][k].v*(1-3*fluid1[i][j-2][k].gas_const*fluid1[i][j-2][k].temp)-fluid1[i][j-2][k].rho*pow(fluid1[i][j-2][k].v,3)))/(2*dy);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].v,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(-3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].v,3)) + 4*(fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*pow(fluid1[i][j+1][k].v,3)) - (fluid1[i][j+2][k].rho*fluid1[i][j+2][k].v*(1-3*fluid1[i][j+2][k].gas_const*fluid1[i][j+2][k].temp)-fluid1[i][j+2][k].rho*pow(fluid1[i][j+2][k].v,3)))/(2*dy);
                             
+                            if (cy[l] == 0) feq *= (1 - P);
+                            else if (cy[l] == 1) feq *= (eps+P)/2;
+                            else if (cy[l] == -1) feq*= (-eps+P)/2;
+                        #endif
 
-                            fluid1[i][j][k].fpc[l]=feq;
-                            fluid1[i][j][k].f[l]=feq;
-                        }
-
-                    #else
-                        double uu = fluid1[i][j][k].u*fluid1[i][j][k].u + fluid1[i][j][k].v*fluid1[i][j][k].v + fluid1[i][j][k].w*fluid1[i][j][k].w;
-
-                        for (int l = 0; l < npop; ++l)
-                        {
-                            double cu = cx[l]*fluid1[i][j][k].u + cy[l]*fluid1[i][j][k].v + cz[l]*fluid1[i][j][k].w;
-                            double feq = wi[l]*fluid1[i][j][k].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
-                            fluid1[i][j][k].fpc[l]=feq;
-                            fluid1[i][j][k].f[l]=feq;
-                        }
-                    #endif
+                        #if NDIM == 3
+                            eps = fluid1[i][j][k].w;
+                            if (k > Nz - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].w,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].w,3)) - 4*(fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*pow(fluid1[i][j][k-1].w,3)) + (fluid1[i][j][k-2].rho*fluid1[i][j][k-2].w*(1-3*fluid1[i][j][k-2].gas_const*fluid1[i][j][k-2].temp)-fluid1[i][j][k-2].rho*pow(fluid1[i][j][k-2].w,3)))/(2*dz);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].w,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega) * (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].w,3)) + 4*(fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*pow(fluid1[i][j][k+1].w,3)) - (fluid1[i][j][k+2].rho*fluid1[i][j][k+2].w*(1-3*fluid1[i][j][k+2].gas_const*fluid1[i][j][k+2].temp)-fluid1[i][j][k+2].rho*pow(fluid1[i][j][k+2].w,3)))/(2*dz);
+                            
+                            if (cz[l] == 0) feq *= (1 - P);
+                            else if (cz[l] == 1) feq *= (eps+P)/2;
+                            else if (cz[l] == -1) feq*= (-eps+P)/2;
+                        #endif
+                        
+                        fluid1[i][j][k].fpc[l]=feq;
+                        fluid1[i][j][k].f[l]=feq;
+                    }
                 }
             }
         }
     }
+
+    #else
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {    
+                if (fluid1[i][j][k].type == TYPE_F || fluid1[i][j][k].type == TYPE_E)     
+                {   
+                    double uu = fluid1[i][j][k].u*fluid1[i][j][k].u + fluid1[i][j][k].v*fluid1[i][j][k].v + fluid1[i][j][k].w*fluid1[i][j][k].w;
+
+                    for (int l = 0; l < npop; ++l)
+                    {
+                        double cu = cx[l]*fluid1[i][j][k].u + cy[l]*fluid1[i][j][k].v + cz[l]*fluid1[i][j][k].w;
+                        double feq = wi[l]*fluid1[i][j][k].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
+                        fluid1[i][j][k].fpc[l]=feq;
+                        fluid1[i][j][k].f[l]=feq;
+                    }
+                }
+            }
+        }
+    }
+    #endif
 }
 
 void LBM::Collide_BGK()
@@ -88,59 +120,58 @@ void LBM::Collide_BGK()
             for (int k = 0; k < Nz; ++k)
             {
                 if (fluid1[i][j][k].type==TYPE_F)
-                {
-                    double rho=0.0;
-                    double rho_u=0.0;
-                    double rho_v=0.0;
-                    double rho_w=0.0;
-                    //double rho_E=0.0; // NOT FINISHED YET
-                                
-                    for (int l = 0; l < npop; ++l)
-                    {
-                        rho  +=fluid1[i][j][k].f[l];
-                        rho_u+=fluid1[i][j][k].f[l]*cx[l];
-                        rho_v+=fluid1[i][j][k].f[l]*cy[l];
-                        rho_w+=fluid1[i][j][k].f[l]*cz[l];
-                    }
-                    // Macroscopic quantities
-                    double u=rho_u/rho;
-                    double v=rho_v/rho;
-                    double w=rho_w/rho;
-                    
+                {                   
                     #ifdef LBM_ENTROPY
-                        double zeta = GAS_CONST * TEMP;
                         for (int l = 0; l < npop; ++l)
-                        {
-                            double feq = rho;
-                            double h_func = 1;
-                            double B_vec[3];
-
-                                if (cx[l] == 0) feq *= (1 - (u*u + zeta));
-                                else if (cx[l] == 1) feq *= (u + (u*u + zeta))/2;
-                                else if (cx[l] == -1) feq*= (-u + (u*u + zeta))/2;
+                    {
+                        double feq = fluid1[i][j][k].rho;
+                        double P = 0.0;
+                        
+                            double eps = fluid1[i][j][k].u;
+                            if (i > Nx - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].u,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].u,3)) - 4*(fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*pow(fluid1[i-1][j][k].u,3)) + (fluid1[i-2][j][k].rho*fluid1[i-2][j][k].u*(1-3*fluid1[i-2][j][k].gas_const*fluid1[i-2][j][k].temp)-fluid1[i-2][j][k].rho*pow(fluid1[i-2][j][k].u,3)))/(2*dx);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].u,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(-3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].u,3)) + 4*(fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*pow(fluid1[i+1][j][k].u,3)) - (fluid1[i+2][j][k].rho*fluid1[i+2][j][k].u*(1-3*fluid1[i+2][j][k].gas_const*fluid1[i+2][j][k].temp)-fluid1[i+2][j][k].rho*pow(fluid1[i+2][j][k].u,3)))/(2*dx);
                             
-                            #if NDIM == 2 || NDIM == 3
-                                if (cy[l] == 0) feq *= (1 - (v*v + zeta));
-                                else if (cy[l] == 1) feq *= (v + (v*v + zeta))/2;
-                                else if (cy[l] == -1) feq*= (-v + (v*v + zeta))/2;
-                            #endif
-
-                            #if NDIM == 3
-                                if (cz[l] == 0) feq *= (1 - (w*w + zeta));
-                                else if (cz[l] == 1) feq *= (w + (w*w + zeta))/2;
-                                else if (cz[l] == -1) feq*= (-w + (w*w + zeta))/2;
-                            #endif
+                            if (cx[l] == 0) feq *= (1 - P);
+                            else if (cx[l] == 1) feq *= (eps+P)/2;
+                            else if (cx[l] == -1) feq*= (-eps+P)/2;
+                        
+                        #if NDIM == 2 || NDIM == 3
+                            eps = fluid1[i][j][k].v;
+                            if (j > Ny - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].v,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].v,3)) - 4*(fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*pow(fluid1[i][j-1][k].v,3)) + (fluid1[i][j-2][k].rho*fluid1[i][j-2][k].v*(1-3*fluid1[i][j-2][k].gas_const*fluid1[i][j-2][k].temp)-fluid1[i][j-2][k].rho*pow(fluid1[i][j-2][k].v,3)))/(2*dy);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].v,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(-3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].v,3)) + 4*(fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*pow(fluid1[i][j+1][k].v,3)) - (fluid1[i][j+2][k].rho*fluid1[i][j+2][k].v*(1-3*fluid1[i][j+2][k].gas_const*fluid1[i][j+2][k].temp)-fluid1[i][j+2][k].rho*pow(fluid1[i][j+2][k].v,3)))/(2*dy);
                             
-                            fluid1[i][j][k].fpc[l]=(1.0-omega)*fluid1[i][j][k].f[l]+omega*feq;
-                        }
+                            if (cy[l] == 0) feq *= (1 - P);
+                            else if (cy[l] == 1) feq *= (eps+P)/2;
+                            else if (cy[l] == -1) feq*= (-eps+P)/2;
+                        #endif
+
+                        #if NDIM == 3
+                            eps = fluid1[i][j][k].w;
+                            if (k > Nz - 3)
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].w,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega)*(3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].w,3)) - 4*(fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*pow(fluid1[i][j][k-1].w,3)) + (fluid1[i][j][k-2].rho*fluid1[i][j][k-2].w*(1-3*fluid1[i][j][k-2].gas_const*fluid1[i][j][k-2].temp)-fluid1[i][j][k-2].rho*pow(fluid1[i][j][k-2].w,3)))/(2*dz);
+                            else
+                                P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + pow(fluid1[i][j][k].w,2) + dt*(2-omega)/(2*fluid1[i][j][k].rho*omega) * (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*pow(fluid1[i][j][k].w,3)) + 4*(fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*pow(fluid1[i][j][k+1].w,3)) - (fluid1[i][j][k+2].rho*fluid1[i][j][k+2].w*(1-3*fluid1[i][j][k+2].gas_const*fluid1[i][j][k+2].temp)-fluid1[i][j][k+2].rho*pow(fluid1[i][j][k+2].w,3)))/(2*dz);
+                            
+                            if (cz[l] == 0) feq *= (1 - P);
+                            else if (cz[l] == 1) feq *= (eps+P)/2;
+                            else if (cz[l] == -1) feq*= (-eps+P)/2;
+                        #endif
+                        
+                        fluid1[i][j][k].fpc[l]=feq;
+                        fluid1[i][j][k].f[l]=feq;
+                    }
 
                     #else
-                        double uu = u*u + v*v + w*w;
+                        double uu = pow(fluid1[i][j][k].u,2) + pow(fluid1[i][j][k].v,2) + pow(fluid1[i][j][k].w,2);
 
                         for (int l = 0; l < npop; ++l)
                         {
-                            double cu=cx[l]*u+cy[l]*v+cz[l]*w;
-                            double feq=wi[l]*rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
+                            double cu=cx[l]*fluid1[i][j][k].u+cy[l]*fluid1[i][j][k].v+cz[l]*fluid1[i][j][k].w;
+                            double feq=wi[l]*fluid1[i][j][k].rho*(1.0+3.0*cu+4.5*cu*cu-1.5*uu);
                             fluid1[i][j][k].fpc[l]=(1.0-omega)*fluid1[i][j][k].f[l] + omega*feq;
                         }
                     #endif

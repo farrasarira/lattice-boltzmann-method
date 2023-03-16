@@ -48,11 +48,12 @@
             double v = 0.0;       // velocity in y-direction
             double w = 0.0;       // velocity in z-direction
 
-            /* // ####### Energy Kinetic Equation Parameter #######
+            // ####### Energy Kinetic Equation Parameter #######
             double g[npop], gpc[npop];    // energy distribution function, energy distrbution function post collision
-            double temp = 0.8;      // temperature
+            double gas_const = 0.8;
+            double temp = 1.0;      // temperature
             double totalEnergy;     // total energy (E)
-            double internalEnergy;  // internal energy (U) | E = U + 1/2 * rho * u^2 */
+            double internalEnergy;  // internal energy (U) | E = U + 1/2 * rho * u^2 
 
     };
 

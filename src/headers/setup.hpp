@@ -48,7 +48,6 @@
                 }
             }
         }
-        std::cout << "setup selesai" << std::endl;
         return lb;
     }
 
