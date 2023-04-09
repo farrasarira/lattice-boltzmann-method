@@ -16,28 +16,32 @@ int main()
 
     // initialize the distribution function 
     lb.Init();  
+    lb.Quantity(); 
     std::cout << "-- Initialization Done --" << std::endl;
 
     // initialize time step & Save the macroscopic at t=0
     int step = 0;
-    //OutputVTK(step, lb);
+    OutputVTK(step, lb);
     OutputKeEns(step, lb);
-
+        
     // Simulation loop
     for (step = 1; step < NSTEP; ++step)
     {
         lb.Collide_BGK();   // collision step
+        std::cout << "-- Collision Done --" << std::endl;
         lb.Streaming();     // streaming step & BC
+        std::cout << "-- Streaming Done --" << std::endl;
         lb.Quantity();       // Calculate macroscopic quantity
+        std::cout << "-- Calculate Quantity Done --" << std::endl;
 
         if (step % TOUT == 0)
         {
             //std::cout << "Step : " << step << std::endl;
             OutputKeEns(step, lb);
         }
-        if (step % (TOUT*10) == 0)
+        if (step % TOUT == 0)
         {
-            //OutputVTK(step, lb); // Sace the macroscopic quantity
+            OutputVTK(step, lb); // Sace the macroscopic quantity
         }
     }
 

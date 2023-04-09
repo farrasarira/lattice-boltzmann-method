@@ -28,6 +28,8 @@ void OutputVTK(int &nout, LBM &lb)
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Density\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Velocity\" NumberOfComponents=\"3\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+3*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CellType\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
+	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Temperature\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
+	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Pressure\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"    </CellData>\n");
 	fprintf(fp,"    <Coordinates>\n");
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CoordinateX\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx+1);
@@ -57,7 +59,7 @@ void OutputVTK(int &nout, LBM &lb)
 			for(i=0;i<Nx;i++){
 				val32=(float)lb.fluid1[i][j][k].u; fwrite(&val32,sizeof(float),1,fp);
 				val32=(float)lb.fluid1[i][j][k].v; fwrite(&val32,sizeof(float),1,fp);
-				val32=0.0; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.fluid1[i][j][k].w; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -72,6 +74,29 @@ void OutputVTK(int &nout, LBM &lb)
 			}
 		}
 	}
+
+	// Temperature (cell)
+	array_size=1*4*(Nx)*(Ny)*(Nz);
+	fwrite(&array_size,sizeof(int),1,fp);
+	for(k=0;k<Nz;k++){
+		for(j=0;j<Ny;j++){
+			for(i=0;i<Nx;i++){
+				val32=(float)lb.fluid1[i][j][k].temp; fwrite(&val32,sizeof(float),1,fp);
+			}
+		}
+	}
+
+	// Pressure (cell)
+	array_size=1*4*(Nx)*(Ny)*(Nz);
+	fwrite(&array_size,sizeof(int),1,fp);
+	for(k=0;k<Nz;k++){
+		for(j=0;j<Ny;j++){
+			for(i=0;i<Nx;i++){
+				val32=(float)lb.fluid1[i][j][k].p; fwrite(&val32,sizeof(float),1,fp);
+			}
+		}
+	}
+
 	// Coordinates (vertices)
 	array_size=1*4*(Nx+1);
 	fwrite(&array_size,sizeof(int),1,fp);

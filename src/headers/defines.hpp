@@ -10,22 +10,25 @@
     // Choose one of the following Flow Cases
     //#define CYLINDER_2D
     //#define TAYLOR_GREEN_2D
-    #define TAYLOR_GREEN_3D
+    //#define TAYLOR_GREEN_3D
     //#define CHANNEL_FLOW_3D
     //#define CYLINDER_3D
+    #define VISCOSITY_TEST
 
     // ############# Flow Parameters ##################
     // input the flow parameters
     #define RE 200        // Reynolds number
     #define NU 0.0079577  // Kinetic viscosity
-    #define rho0 1.0            // Density
-    #define T0 1.0              // Temperature high
-    #define P0 0.0
+    #define RHO0 1.0      // Density
+    #define T_HIGH 1.0    // Temperature high
     #define cs 1.0/sqrt(3.0)    // Lattice sound speed
+    #define TREF 1./3.
+    #define PR 0.7    // Prandtl Number
+    #define GAMMA 1.4 // Cp/Cv
 
     // ########## Simulation Time & Output ############
-    #define NSTEP 2000   // Maximum time step, in Lattice time unit
-    #define TOUT 50      // Interval of time step to save the macroscopic quantity
+    #define NSTEP 20000   // Maximum time step, in Lattice time unit
+    #define TOUT 10      // Interval of time step to save the macroscopic quantity
 
     // ############# Physical Quantity ################
     #define BCXM  0.0   
@@ -37,7 +40,7 @@
     #define dx 1
     #define dy 1
     #define dz 1
-    #define dt 1
+    #define dt_sim 1
     #define NX 100
     #define NY 100
     #define NZ 100
@@ -57,10 +60,10 @@
     // Definition For code, don't change!
 
     // ################# Velocity Set ##################
-    #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D
+    #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST
         #define D3Q27
         #define NDIM 3
     #endif

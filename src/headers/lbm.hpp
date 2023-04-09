@@ -47,28 +47,37 @@
             double u = 0.0;       // velocity in x-direction
             double v = 0.0;       // velocity in y-direction
             double w = 0.0;       // velocity in z-direction
+            double p = 1./3.;     // pressure
+            double p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
+                                     {0., 0., 0.},
+                                     {0., 0., 0.}};
+
+            double mu;
+            double omega=1.0/(0.5 + 3 * NU);  // kinematic viscosity, relaxation time, and omega
 
             // ####### Energy Kinetic Equation Parameter #######
             double g[npop], gpc[npop];    // energy distribution function, energy distrbution function post collision
-            double gas_const = 0.8;
-            double temp = 1.0;      // temperature
+            double gas_const = 1.0;
+            double temp = 1./3.;      // temperature
             double totalEnergy;     // total energy (E)
             double internalEnergy;  // internal energy (U) | E = U + 1/2 * rho * u^2 
-
+            double enthalpy; // enthalpy (H)
+            double energy_flux[3] = {0., 0., 0.}; // heat flux
+            
+            double conduc_coeff, omega1; // Relaxation time related do conductivity
     };
 
     class LBM
     {
         private:
             int Nx, Ny, Nz = 1;
-            double nu, tau, omega;
         
         public:
             LATTICE *** fluid1;
 
         public:
             // constructor
-            LBM(int Nx, int Ny, int Nz, double nu);
+            LBM(int Nx, int Ny, int Nz);
 
             // initialize
             void Init();        // initialize equilibrium           
@@ -83,7 +92,6 @@
             int getNx(){return Nx;};
             int getNy(){return Ny;};
             int getNz(){return Nz;};
-            double getNu(){return nu;};
     };
 
 #endif
