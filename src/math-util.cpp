@@ -30,6 +30,6 @@ double v_sqr(double u, double v, double w)
 double limiterVanleer(double sL, double sR)
 {
     double slope=(abs(sR)*sL+sR*abs(sL))/(abs(sL)+abs(sR));
-    if (isfinite(slope)) slope = 0;
+    if (isfinite(slope) == false) slope = 0;
     return slope;
 }
