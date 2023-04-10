@@ -25,14 +25,14 @@ int main()
     OutputKeEns(step, lb);
         
     // Simulation loop
-    for (step = 1; step < NSTEP; ++step)
+    for (step = 1; step <= NSTEP; ++step)
     {
         lb.Collide_BGK();   // collision step
-        std::cout << "-- Collision Done --" << std::endl;
+        // std::cout << "-- Collision Done --" << std::endl;
         lb.Streaming();     // streaming step & BC
-        std::cout << "-- Streaming Done --" << std::endl;
+        // std::cout << "-- Streaming Done --" << std::endl;
         lb.Quantity();       // Calculate macroscopic quantity
-        std::cout << "-- Calculate Quantity Done --" << std::endl;
+        // std::cout << "-- Calculate Quantity Done --" << std::endl;
 
         if (step % TOUT == 0)
         {

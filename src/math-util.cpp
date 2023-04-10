@@ -1,5 +1,6 @@
 
 #include"math_util.hpp"
+#include<math.h>
 
 double dotproduct_Vec3(double a[], double b[])
 {
@@ -24,4 +25,11 @@ double cb(double a)
 double v_sqr(double u, double v, double w)
 {
     return u*u+v*v+w*w;
+}
+
+double limiterVanleer(double sL, double sR)
+{
+    double slope=(abs(sR)*sL+sR*abs(sL))/(abs(sL)+abs(sR));
+    if (isfinite(slope)) slope = 0;
+    return slope;
 }

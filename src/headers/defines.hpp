@@ -10,24 +10,24 @@
     // Choose one of the following Flow Cases
     //#define CYLINDER_2D
     //#define TAYLOR_GREEN_2D
-    //#define TAYLOR_GREEN_3D
+    #define TAYLOR_GREEN_3D
     //#define CHANNEL_FLOW_3D
     //#define CYLINDER_3D
-    #define VISCOSITY_TEST
+    //#define VISCOSITY_TEST
 
     // ############# Flow Parameters ##################
     // input the flow parameters
     #define RE 200        // Reynolds number
-    #define NU 0.0079577  // Kinetic viscosity
+    #define NU 0.007  // Kinetic viscosity
     #define RHO0 1.0      // Density
     #define T_HIGH 1.0    // Temperature high
     #define cs 1.0/sqrt(3.0)    // Lattice sound speed
     #define TREF 1./3.
-    #define PR 0.7    // Prandtl Number
+    #define PR 1.0    // Prandtl Number
     #define GAMMA 1.4 // Cp/Cv
 
     // ########## Simulation Time & Output ############
-    #define NSTEP 20000   // Maximum time step, in Lattice time unit
+    #define NSTEP 10000   // Maximum time step, in Lattice time unit
     #define TOUT 10      // Interval of time step to save the macroscopic quantity
 
     // ############# Physical Quantity ################

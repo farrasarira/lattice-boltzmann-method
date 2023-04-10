@@ -6,9 +6,9 @@
 #include <omp.h>
 #include <numeric>
 
-using namespace Cantera;
+// using namespace Cantera;
 
-std::vector<std::shared_ptr<Cantera::Solution>> sols;
+// std::vector<std::shared_ptr<Cantera::Solution>> sols;
 
 LBM::LBM(int Nx, int Ny, int Nz)
 {
@@ -40,6 +40,87 @@ void LBM::Init()
 {
     
     #ifdef LBM_EXTEND
+
+    double Qdevb[Nx][Ny][Nz] = {};
+    double Qdev[Nx][Ny][Nz] = {};
+
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if (fluid1[i][j][k].type == TYPE_F || fluid1[i][j][k].type == TYPE_E)     
+                {
+                    if (i == 1)
+                    {
+                        Qdevb[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) + 4*(fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - 1*(fluid1[i+2][j][k].rho*fluid1[i+2][j][k].u*(1-3*fluid1[i+2][j][k].gas_const*fluid1[i+2][j][k].temp)-fluid1[i+2][j][k].rho*cb(fluid1[i+2][j][k].u))) /sq(dx);
+                    }
+                    else if (i == Nx-2)
+                    {
+                        Qdevb[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) - 4*(fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) + 1*(fluid1[i-2][j][k].rho*fluid1[i-2][j][k].u*(1-3*fluid1[i-2][j][k].gas_const*fluid1[i-2][j][k].temp)-fluid1[i-2][j][k].rho*cb(fluid1[i-2][j][k].u))) /sq(dx);
+                    }
+                    else
+                    {
+                        Qdevb[i][j][k] = ((fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - (fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) ) /(2*dx);
+                    }
+
+                    if (j == 1)
+                    {
+                        Qdevb[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) + 4*(fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - 1*(fluid1[i][j+2][k].rho*fluid1[i][j+2][k].v*(1-3*fluid1[i][j+2][k].gas_const*fluid1[i][j+2][k].temp)-fluid1[i][j+2][k].rho*cb(fluid1[i][j+2][k].v))) /sq(dy);
+                    }
+                    else if (j == Ny-2)
+                    {
+                        Qdevb[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) - 4*(fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) + 1*(fluid1[i][j-2][k].rho*fluid1[i][j-2][k].v*(1-3*fluid1[i][j-2][k].gas_const*fluid1[i][j-2][k].temp)-fluid1[i][j-2][k].rho*cb(fluid1[i][j-2][k].v))) /sq(dy);
+                    }
+                    else
+                    {
+                        Qdevb[i][j][k] = ((fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - (fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) ) /(2*dy);
+                    }
+
+                    if (k == 1)
+                    {
+                        Qdevb[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) + 4*(fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - 1*(fluid1[i][j][k+2].rho*fluid1[i][j][k+2].w*(1-3*fluid1[i][j][k+2].gas_const*fluid1[i][j][k+2].temp)-fluid1[i][j][k+2].rho*cb(fluid1[i][j][k+2].w))) /sq(dz);
+                    }
+                    else if (k == Nz-2)
+                    {
+                        Qdevb[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) - 4*(fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) + 1*(fluid1[i][j][k-2].rho*fluid1[i][j][k-2].w*(1-3*fluid1[i][j][k-2].gas_const*fluid1[i][j][k-2].temp)-fluid1[i][j][k-2].rho*cb(fluid1[i][j][k-2].w))) /sq(dz);
+                    }
+                    else
+                    {
+                        Qdevb[i][j][k] = ((fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - (fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) ) /(2*dz);
+                    }
+                }
+            }
+        }
+    }
+
+    std::cout << "masuk ;;" << std::endl;
+
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if (fluid1[i][j][k].type == TYPE_F || fluid1[i][j][k].type == TYPE_E)     
+                {
+                    if (i == Nx-2) Qdev[i][j][k] = limiterVanleer(Qdevb[i-1][j][k],Qdevb[i][j][k]);
+                    else Qdev[i][j][k] = limiterVanleer(Qdevb[i][j][k],Qdevb[i+1][j][k]);
+
+                    if (j == Ny-2) Qdev[i][j][k] = limiterVanleer(Qdevb[i][j-1][k],Qdevb[i][j][k]);
+                    else Qdev[i][j][k] = limiterVanleer(Qdevb[i][j][k],Qdevb[i][j+1][k]);
+
+                    if (k == Nz-2) Qdev[i][j][k] = limiterVanleer(Qdevb[i][j][k-1],Qdevb[i][j][k]);
+                    else Qdev[i][j][k] = limiterVanleer(Qdevb[i][j][k],Qdevb[i][j][k+1]);
+                }
+            }
+        }
+    }
+
+
     #pragma omp parallel for schedule(static, 1)
     for(int i = 0; i < Nx ; ++i)
     {
@@ -85,7 +166,6 @@ void LBM::Init()
                     fluid1[i][j][k].omega1 = 2*fluid1[i][j][k].p*cp*dt_sim / (fluid1[i][j][k].p*cp*dt_sim + 2*fluid1[i][j][k].conduc_coeff);
 
                     double feq_temp[npop] = {};
-                    double Qdev[3] = {0.,0.,0.};
                     for (int l = 0; l < npop; ++l)
                     {
                         // ------------- Mass and Momentum Initialization -----------------------------
@@ -95,15 +175,15 @@ void LBM::Init()
 
                             if (i == 1)
                             {
-                                Qdev[0] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) + 4*(fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - 1*(fluid1[i+2][j][k].rho*fluid1[i+2][j][k].u*(1-3*fluid1[i+2][j][k].gas_const*fluid1[i+2][j][k].temp)-fluid1[i+2][j][k].rho*cb(fluid1[i+2][j][k].u))) /sq(dx);
+                                Qdev[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) + 4*(fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - 1*(fluid1[i+2][j][k].rho*fluid1[i+2][j][k].u*(1-3*fluid1[i+2][j][k].gas_const*fluid1[i+2][j][k].temp)-fluid1[i+2][j][k].rho*cb(fluid1[i+2][j][k].u))) /sq(dx);
                             }
                             else if (i == Nx-2)
                             {
-                                Qdev[0] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) - 4*(fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) + 1*(fluid1[i-2][j][k].rho*fluid1[i-2][j][k].u*(1-3*fluid1[i-2][j][k].gas_const*fluid1[i-2][j][k].temp)-fluid1[i-2][j][k].rho*cb(fluid1[i-2][j][k].u))) /sq(dx);
+                                Qdev[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].u*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].u)) - 4*(fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) + 1*(fluid1[i-2][j][k].rho*fluid1[i-2][j][k].u*(1-3*fluid1[i-2][j][k].gas_const*fluid1[i-2][j][k].temp)-fluid1[i-2][j][k].rho*cb(fluid1[i-2][j][k].u))) /sq(dx);
                             }
                             else
                             {
-                                Qdev[0] = ((fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - (fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) ) /(2*dx);
+                                Qdev[i][j][k] = ((fluid1[i+1][j][k].rho*fluid1[i+1][j][k].u*(1-3*fluid1[i+1][j][k].gas_const*fluid1[i+1][j][k].temp)-fluid1[i+1][j][k].rho*cb(fluid1[i+1][j][k].u)) - (fluid1[i-1][j][k].rho*fluid1[i-1][j][k].u*(1-3*fluid1[i-1][j][k].gas_const*fluid1[i-1][j][k].temp)-fluid1[i-1][j][k].rho*cb(fluid1[i-1][j][k].u)) ) /(2*dx);
                             }
                             eps = fluid1[i][j][k].u;
                             P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + sq(fluid1[i][j][k].u) ;//+ dt_sim*(2-fluid1[i][j][k].omega)/(2*fluid1[i][j][k].rho*fluid1[i][j][k].omega)*Qdev[0];
@@ -114,15 +194,15 @@ void LBM::Init()
                         #if NDIM == 2 || NDIM == 3
                             if (j == 1)
                             {
-                                Qdev[1] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) + 4*(fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - 1*(fluid1[i][j+2][k].rho*fluid1[i][j+2][k].v*(1-3*fluid1[i][j+2][k].gas_const*fluid1[i][j+2][k].temp)-fluid1[i][j+2][k].rho*cb(fluid1[i][j+2][k].v))) /sq(dy);
+                                Qdev[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) + 4*(fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - 1*(fluid1[i][j+2][k].rho*fluid1[i][j+2][k].v*(1-3*fluid1[i][j+2][k].gas_const*fluid1[i][j+2][k].temp)-fluid1[i][j+2][k].rho*cb(fluid1[i][j+2][k].v))) /sq(dy);
                             }
                             else if (j == Ny-2)
                             {
-                                Qdev[1] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) - 4*(fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) + 1*(fluid1[i][j-2][k].rho*fluid1[i][j-2][k].v*(1-3*fluid1[i][j-2][k].gas_const*fluid1[i][j-2][k].temp)-fluid1[i][j-2][k].rho*cb(fluid1[i][j-2][k].v))) /sq(dy);
+                                Qdev[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].v*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].v)) - 4*(fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) + 1*(fluid1[i][j-2][k].rho*fluid1[i][j-2][k].v*(1-3*fluid1[i][j-2][k].gas_const*fluid1[i][j-2][k].temp)-fluid1[i][j-2][k].rho*cb(fluid1[i][j-2][k].v))) /sq(dy);
                             }
                             else
                             {
-                                Qdev[1] = ((fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - (fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) ) /(2*dy);
+                                Qdev[i][j][k] = ((fluid1[i][j+1][k].rho*fluid1[i][j+1][k].v*(1-3*fluid1[i][j+1][k].gas_const*fluid1[i][j+1][k].temp)-fluid1[i][j+1][k].rho*cb(fluid1[i][j+1][k].v)) - (fluid1[i][j-1][k].rho*fluid1[i][j-1][k].v*(1-3*fluid1[i][j-1][k].gas_const*fluid1[i][j-1][k].temp)-fluid1[i][j-1][k].rho*cb(fluid1[i][j-1][k].v)) ) /(2*dy);
                             }
                             eps = fluid1[i][j][k].v;
                             P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + sq(fluid1[i][j][k].v) ;//+ dt_sim*(2-fluid1[i][j][k].omega)/(2*fluid1[i][j][k].rho*fluid1[i][j][k].omega)*Qdev[1];
@@ -134,15 +214,15 @@ void LBM::Init()
                         #if NDIM == 3
                             if (k == 1)
                             {
-                                Qdev[2] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) + 4*(fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - 1*(fluid1[i][j][k+2].rho*fluid1[i][j][k+2].w*(1-3*fluid1[i][j][k+2].gas_const*fluid1[i][j][k+2].temp)-fluid1[i][j][k+2].rho*cb(fluid1[i][j][k+2].w))) /sq(dz);
+                                Qdev[i][j][k] = (-3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) + 4*(fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - 1*(fluid1[i][j][k+2].rho*fluid1[i][j][k+2].w*(1-3*fluid1[i][j][k+2].gas_const*fluid1[i][j][k+2].temp)-fluid1[i][j][k+2].rho*cb(fluid1[i][j][k+2].w))) /sq(dz);
                             }
                             else if (k == Nz-2)
                             {
-                                Qdev[2] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) - 4*(fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) + 1*(fluid1[i][j][k-2].rho*fluid1[i][j][k-2].w*(1-3*fluid1[i][j][k-2].gas_const*fluid1[i][j][k-2].temp)-fluid1[i][j][k-2].rho*cb(fluid1[i][j][k-2].w))) /sq(dz);
+                                Qdev[i][j][k] = (3*(fluid1[i][j][k].rho*fluid1[i][j][k].w*(1-3*fluid1[i][j][k].gas_const*fluid1[i][j][k].temp)-fluid1[i][j][k].rho*cb(fluid1[i][j][k].w)) - 4*(fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) + 1*(fluid1[i][j][k-2].rho*fluid1[i][j][k-2].w*(1-3*fluid1[i][j][k-2].gas_const*fluid1[i][j][k-2].temp)-fluid1[i][j][k-2].rho*cb(fluid1[i][j][k-2].w))) /sq(dz);
                             }
                             else
                             {
-                                Qdev[2] = ((fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - (fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) ) /(2*dz);
+                                Qdev[i][j][k] = ((fluid1[i][j][k+1].rho*fluid1[i][j][k+1].w*(1-3*fluid1[i][j][k+1].gas_const*fluid1[i][j][k+1].temp)-fluid1[i][j][k+1].rho*cb(fluid1[i][j][k+1].w)) - (fluid1[i][j][k-1].rho*fluid1[i][j][k-1].w*(1-3*fluid1[i][j][k-1].gas_const*fluid1[i][j][k-1].temp)-fluid1[i][j][k-1].rho*cb(fluid1[i][j][k-1].w)) ) /(2*dz);
                             }
                             eps = fluid1[i][j][k].w;
                             P = fluid1[i][j][k].gas_const*fluid1[i][j][k].temp + sq(fluid1[i][j][k].w) ;//+ dt_sim*(2-fluid1[i][j][k].omega)/(2*fluid1[i][j][k].rho*fluid1[i][j][k].omega)*Qdev[2];

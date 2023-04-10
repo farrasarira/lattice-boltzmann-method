@@ -239,10 +239,10 @@ LBM main_setup() // 2D Viscos Test ---------------------------------------------
     LBM lb(NX,NY,NZ);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
 
-    const double mach = 0.1;
+    const double mach = 0.9;
     const double gamma = GAMMA;
     const double a0 = 0.001; // amplitude
-    const double T0 = 1./3.;
+    const double T0 = 0.1;
     const double u0 = mach*sqrt(gamma*T0); 
     const double rho0 = 1.0;
 
