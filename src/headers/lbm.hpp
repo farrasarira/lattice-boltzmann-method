@@ -3,6 +3,7 @@
 
     #include <math.h>
     #include <iostream>
+    #include <vector>
     #include "defines.hpp"
  
 
@@ -42,52 +43,72 @@
             short type = TYPE_F;    // type of lattice (FLUID, SOLID, ... see setup for more)
             
             // ###### Momentum Kinetic Equation Parameter ######
-            double f[npop], fpc[npop];    // distribution function, distribution function post collistion  
-            double rho;           // macroscopic quantity
-            double u = 0.0;       // velocity in x-direction
-            double v = 0.0;       // velocity in y-direction
-            double w = 0.0;       // velocity in z-direction
-            double p = 1./3.;     // pressure
+            double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
+            double rho;                 // macroscopic quantity
+            double rhou = 0.0;          // velocity in x-direction
+            double rhov = 0.0;          // velocity in y-direction
+            double rhow = 0.0;          // velocity in z-direction
+            double p = 1./3.;           // pressure
+            double mmass = 1.0;         // molar mass
             double p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
                                      {0., 0., 0.},
                                      {0., 0., 0.}};
 
-            double mu;
-            double omega=1.0/(0.5 + 3 * NU);  // kinematic viscosity, relaxation time, and omega
-
             // ####### Energy Kinetic Equation Parameter #######
-            double g[npop], gpc[npop];    // energy distribution function, energy distrbution function post collision
-            double gas_const = 1.0;
-            double temp = 1./3.;      // temperature
-            double totalEnergy;     // total energy (E)
-            double internalEnergy;  // internal energy (U) | E = U + 1/2 * rho * u^2 
-            double enthalpy; // enthalpy (H)
+            double g[npop], gpc[npop];  // energy distribution function, energy distrbution function post collision
+            double temp = 1./3.;        // temperature
+            double rhoe;                // density * total energy (E)
             double energy_flux[3] = {0., 0., 0.}; // heat flux
-            
-            double conduc_coeff, omega1; // Relaxation time related do conductivity
+
+            // Third-order Moment Deviation
+            double dQdevx = 0.0;
+            double dQdevy = 0.0;
+            double dQdevz = 0.0;
+    };
+
+    class SPECIES
+    {
+        public:
+            // ###### Momentum Kinetic Equation Parameter ######
+            double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
+            double rho;                 // density
+            double rhou = 0.0;          // velocity in x-direction
+            double rhov = 0.0;          // velocity in y-direction
+            double rhow = 0.0;          // velocity in z-direction
     };
 
     class LBM
     {
         private:
             int Nx, Ny, Nz = 1;
+            int nSpecies = 1;
         
         public:
-            LATTICE *** fluid1;
+            LATTICE *** mixture;
+            std::vector<SPECIES***> species;
 
         public:
             // constructor
             LBM(int Nx, int Ny, int Nz);
+            LBM(int Nx, int Ny, int Nz, int nSpecies);
+
+            // calculate moment
+            void calculate_moment(LATTICE ***fluid);
+
+            // calculate equlibrium density
+            double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
+            double calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R_tensor[][3], double theta);
 
             // initialize
-            void Init();        // initialize equilibrium           
-            
-            // collision operator
-            void Collide_BGK(); // BGK collision
+            void Init(LATTICE ***fluid);    // initialize equilibrium  
+            void Init(SPECIES*** species); 
 
-            void Streaming();   // stream
-            void BC_Noslip();   // no slip boundary condition
-            void Quantity();    // calculate macroscopic quantity
+            // collision operator
+            void Collide(LATTICE ***fluid); // BGK collision
+            
+            // stream
+            void Streaming(LATTICE ***fluid);   
+
 
             int getNx(){return Nx;};
             int getNy(){return Ny;};

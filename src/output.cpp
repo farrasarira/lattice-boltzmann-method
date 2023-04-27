@@ -47,7 +47,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -57,9 +57,9 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j][k].u; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.fluid1[i][j][k].v; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.fluid1[i][j][k].w; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -70,7 +70,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(int)lb.fluid1[i][j][k].type; fwrite(&val32,sizeof(int),1,fp);
+				val32=(int)lb.mixture[i][j][k].type; fwrite(&val32,sizeof(int),1,fp);
 			}
 		}
 	}
@@ -81,7 +81,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j][k].temp; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].temp; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -92,7 +92,7 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.fluid1[i][j][k].p; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].p; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -129,10 +129,10 @@ void OutputKeEns(int &step, LBM &lb)
 		{
 			for (int k = 0; k < lb.getNz(); k++)
 			{
-				if (lb.fluid1[i][j][k].type == TYPE_F)
+				if (lb.mixture[i][j][k].type == TYPE_F)
 				{ 
-					uu = lb.fluid1[i][j][k].u*lb.fluid1[i][j][k].u + lb.fluid1[i][j][k].v*lb.fluid1[i][j][k].v + lb.fluid1[i][j][k].w*lb.fluid1[i][j][k].w;
-					e_kinetic = e_kinetic + lb.fluid1[i][j][k].rho * uu;
+					uu = lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho + lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho + lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho;
+					e_kinetic = e_kinetic + lb.mixture[i][j][k].rho * uu;
 					
 					int i_a = i + 1;
 					int i_b = i - 1;
@@ -151,17 +151,17 @@ void OutputKeEns(int &step, LBM &lb)
 					else if(k_a > lb.getNz()-2) k_a = 1;
 					
 
-					double uy = (lb.fluid1[i][j_a][k].u - lb.fluid1[i][j_b][k].u) / 2;
-					double uz = (lb.fluid1[i][j][k_a].u - lb.fluid1[i][j][k_b].u) / 2;
+					double uy = (lb.mixture[i][j_a][k].rhou/lb.mixture[i][j_a][k].rho - lb.mixture[i][j_b][k].rhou/lb.mixture[i][j_b][k].rho) / 2;
+					double uz = (lb.mixture[i][j][k_a].rhou/lb.mixture[i][j][k_a].rho - lb.mixture[i][j][k_b].rhou/lb.mixture[i][j][k_b].rho) / 2;
 					
-					double vx = (lb.fluid1[i_a][j][k].v - lb.fluid1[i_b][j][k].v) / 2;
-					double vz = (lb.fluid1[i][j][k_a].v - lb.fluid1[i][j][k_b].v) / 2;
+					double vx = (lb.mixture[i_a][j][k].rhov/lb.mixture[i_a][j][k].rho - lb.mixture[i_b][j][k].rhov/lb.mixture[i_b][j][k].rho) / 2;
+					double vz = (lb.mixture[i][j][k_a].rhov/lb.mixture[i][j][k_a].rho - lb.mixture[i][j][k_b].rhov/lb.mixture[i][j][k_b].rho) / 2;
 
-					double wx = (lb.fluid1[i_a][j][k].w - lb.fluid1[i_b][j][k].w) / 2;
-					double wy = (lb.fluid1[i][j_a][k].w - lb.fluid1[i][j_b][k].w) / 2;
+					double wx = (lb.mixture[i_a][j][k].rhow/lb.mixture[i_a][j][k].rho - lb.mixture[i_b][j][k].rhow/lb.mixture[i_b][j][k].rho) / 2;
+					double wy = (lb.mixture[i][j_a][k].rhow/lb.mixture[i][j_a][k].rho - lb.mixture[i][j_b][k].rhow/lb.mixture[i][j_b][k].rho) / 2;
 
 					vort = (wy-vz)*(wy-vz) + (uz-wx)*(uz-wx) + (vx-uy)*(vx-uy);
-					enstro = enstro + lb.fluid1[i][j][k].rho * vort;
+					enstro = enstro + lb.mixture[i][j][k].rho * vort;
 				}
 			}
 		}
@@ -196,15 +196,15 @@ void calcError(int &t,LBM &lb)
 		{
 			for (int k = 0; k < lb.getNz(); k++)
 			{
-				if (lb.fluid1[i][j][k].type == TYPE_F)
+				if (lb.mixture[i][j][k].type == TYPE_F)
 				{
 					double X = i ;
 					double Y = j ;
 					ua =-0.04 * cos(kx*X) * sin(ky*Y) *exp(-1.0*t/td);
 					va = 0.04 * sin(kx*X) * cos(ky*Y) *exp(-1.0*t/td);
 
-					sumue2 += (lb.fluid1[i][j][k].u - ua) * (lb.fluid1[i][j][k].u - ua);
-					sumve2 += (lb.fluid1[i][j][k].v - va) * (lb.fluid1[i][j][k].v - va);
+					sumue2 += (lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho - ua) * (lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho - ua);
+					sumve2 += (lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho - va) * (lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho - va);
 					
 					sumua2 += ua * ua;
 					sumva2 += va * va;
@@ -220,14 +220,4 @@ void calcError(int &t,LBM &lb)
 
 void printLogo()
 {
-	std::cout << R"(
-             _       ____   __  __ 
-            | |     |  _ \ |  \/  |
-            | |     | |_) || \  / |
-            | |     |  _ < | |\/| |
-            | |____ | |_) || |  | |
-            |______||____/ |_|  |_|
-    )";
-    
-    std::cout << std :: endl << "      - Flow Diagnostics Laboratory ITB - " << std::endl << std::endl;
 }

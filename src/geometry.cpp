@@ -18,7 +18,7 @@ void cylinder_generator(LBM &lb, int D)
                 double rx=dx*i-dx*0.5;
                 double ry=dx*j-dx*0.5;
                 if(sqrt(pow(cx-rx,2)+pow(cy-ry,2))<=rad){
-                    lb.fluid1[i][j][k].type=TYPE_S;
+                    lb.mixture[i][j][k].type=TYPE_S;
                 }
             }
         }

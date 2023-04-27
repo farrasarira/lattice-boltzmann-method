@@ -292,6 +292,69 @@ LBM main_setup() // 2D Viscos Test ---------------------------------------------
     std::cout << "u : " << lb.fluid1[Nx/2][Ny/2][Nz/2].u << std::endl;
     return lb;
 }
+
+#elif defined SOD_SHOCK
+LBM main_setup() // 2D Viscos Test --------------------------------------------------------
+{
+    LBM lb(NX,NY,NZ);
+    int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
+
+    // double si_u_max = 1.0; // [m/s]
+    // double si_rho = 1.225; // [kg/m^3]
+    // double si_temp = 288.15; // [K]
+
+    // auto gas = sols[0]->thermo();
+    // auto trans = sols[0]->transport();
+    // gas->setState_TR(si_temp, si_rho);
+
+    // units.set_m_kg_s(NY, a0, rho0, T0, 1.0, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    // double si_pressure = gas->pressure();
+    
+    // double si_gas_constant = si_pressure/(si_rho*si_temp);
+    // double gas_const = units.R(si_gas_constant);
+    
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+                
+                if (i==0 || i==Nx-1 )
+                {
+                    lb.mixture[i][j][k].type = TYPE_S;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    if ((float)i/(float)Nx <= 0.5 )
+                    {
+                        lb.mixture[i][j][k].rhou = 0.0;
+                        lb.mixture[i][j][k].rhov = 0.0;
+                        lb.mixture[i][j][k].rhow = 0.0;
+                        lb.mixture[i][j][k].rho = 0.5;
+                        lb.mixture[i][j][k].temp = 0.2;
+                    }
+                    else
+                    {
+                        lb.mixture[i][j][k].rhou = 0.0;
+                        lb.mixture[i][j][k].rhov = 0.0;
+                        lb.mixture[i][j][k].rhow = 0.0;
+                        lb.mixture[i][j][k].rho = 2.0;
+                        lb.mixture[i][j][k].temp = 0.025;
+                    }                       
+                }
+            }
+        }
+    }
+    return lb;
+}
 #endif
 
 
