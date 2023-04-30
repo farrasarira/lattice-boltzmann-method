@@ -9,7 +9,7 @@
 Units_Conv units;
 
 #if defined CYLINDER_2D
-LBM main_setup() // 2D Flow over cylinder --------------------------------------------------------
+void main_setup() // 2D Flow over cylinder --------------------------------------------------------
 {
     LBM lb(NX,NY,1);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -75,7 +75,7 @@ LBM main_setup() // 2D Flow over cylinder --------------------------------------
 }
 
 #elif defined TAYLOR_GREEN_3D
-LBM main_setup() // 3D Taylor-Green Vortex
+void main_setup() // 3D Taylor-Green Vortex
 {
     LBM lb(NX,NY,NZ);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -114,7 +114,7 @@ LBM main_setup() // 3D Taylor-Green Vortex
     return lb;
 }
 #elif defined TAYLOR_GREEN_2D
-LBM main_setup() // 2D Taylor-Green Vortex
+void main_setup() // 2D Taylor-Green Vortex
 {
     LBM lb(NX,NY,1,NU);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -152,7 +152,7 @@ LBM main_setup() // 2D Taylor-Green Vortex
 }
 
 #elif defined CHANNEL_FLOW_3D
-LBM main_setup() // 3D Channel Flow
+void main_setup() // 3D Channel Flow
 {
     LBM lb(NX,NY,NY,NU);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -193,7 +193,7 @@ LBM main_setup() // 3D Channel Flow
 }
 
 #elif defined CYLINDER_3D
-LBM main_setup() // 3D Flow over cylinder --------------------------------------------------------
+void main_setup() // 3D Flow over cylinder --------------------------------------------------------
 {
     LBM lb(NX,NY,NZ,NU);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -234,7 +234,7 @@ LBM main_setup() // 3D Flow over cylinder --------------------------------------
 }
 
 #elif defined VISCOSITY_TEST
-LBM main_setup() // 2D Viscos Test --------------------------------------------------------
+void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
     LBM lb(NX,NY,NZ);
     int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
@@ -294,25 +294,23 @@ LBM main_setup() // 2D Viscos Test ---------------------------------------------
 }
 
 #elif defined SOD_SHOCK
-LBM main_setup() // 2D Viscos Test --------------------------------------------------------
+void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
-    LBM lb(NX,NY,NZ);
-    int Nx = lb.getNx(); int Ny = lb.getNy(); int Nz = lb.getNz();
-
-    // double si_u_max = 1.0; // [m/s]
-    // double si_rho = 1.225; // [kg/m^3]
-    // double si_temp = 288.15; // [K]
-
-    // auto gas = sols[0]->thermo();
-    // auto trans = sols[0]->transport();
-    // gas->setState_TR(si_temp, si_rho);
-
-    // units.set_m_kg_s(NY, a0, rho0, T0, 1.0, si_u_max, si_rho, si_temp); // setting the conversion factor 
-
-    // double si_pressure = gas->pressure();
+    int NX = 3000; 
+    int NY = 5; 
+    int NZ = 5;
+    double NU = 0.025;
     
-    // double si_gas_constant = si_pressure/(si_rho*si_temp);
-    // double gas_const = units.R(si_gas_constant);
+    double si_len = 5.0;    // [m]
+    double si_u_max = 1.0;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 288.15;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    LBM lb(NX, NY, NZ, NU);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
     
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
@@ -335,17 +333,17 @@ LBM main_setup() // 2D Viscos Test ---------------------------------------------
                 {
                     if ((float)i/(float)Nx <= 0.5 )
                     {
-                        lb.mixture[i][j][k].rhou = 0.0;
-                        lb.mixture[i][j][k].rhov = 0.0;
-                        lb.mixture[i][j][k].rhow = 0.0;
+                        lb.mixture[i][j][k].u = 0.0;
+                        lb.mixture[i][j][k].v = 0.0;
+                        lb.mixture[i][j][k].w = 0.0;
                         lb.mixture[i][j][k].rho = 0.5;
                         lb.mixture[i][j][k].temp = 0.2;
                     }
                     else
                     {
-                        lb.mixture[i][j][k].rhou = 0.0;
-                        lb.mixture[i][j][k].rhov = 0.0;
-                        lb.mixture[i][j][k].rhow = 0.0;
+                        lb.mixture[i][j][k].u = 0.0;
+                        lb.mixture[i][j][k].v = 0.0;
+                        lb.mixture[i][j][k].w = 0.0;
                         lb.mixture[i][j][k].rho = 2.0;
                         lb.mixture[i][j][k].temp = 0.025;
                     }                       
@@ -353,8 +351,83 @@ LBM main_setup() // 2D Viscos Test ---------------------------------------------
             }
         }
     }
-    return lb;
+
+
+    lb.run(1000,10);
 }
+
+#elif defined TERNARY_DIFFUSION
+
+void main_setup() // 2D Viscos Test --------------------------------------------------------
+{
+    int NX = 864; 
+    int NY = 5; 
+    int NZ = 5;
+    
+    double si_len = 5.0;    // [m]
+    double si_u_max = 1.0;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 300;   // [K]
+    double si_press = Cantera::OneAtm; // [Pa]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    std::vector<std::string> species = { "H2", "AR", "CH4" };
+    
+    LBM lb(NX, NY, NZ, species);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz(); int nSpecies = lb.get_nSpecies();
+
+    auto sol = Cantera::newSolution("gri30.yaml", "gri30");
+    auto gas = sol->thermo();
+    std::vector<double> XL (gas->nSpecies());
+    std::vector<double> XR (gas->nSpecies()); 
+
+    XL[gas->speciesIndex("H2")]  = 0.491;
+    XL[gas->speciesIndex("AR")]  = 0.509;
+    XL[gas->speciesIndex("CH4")] = 0.0;
+
+    XR[gas->speciesIndex("H2")]  = 0.0;
+    XR[gas->speciesIndex("AR")]  = 0.485;
+    XR[gas->speciesIndex("CH4")] = 0.515;
+    
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+                
+                if (i==0 || i==Nx-1 )
+                {
+                    lb.mixture[i][j][k].type = TYPE_S;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.mixture[i][j][k].temp = units.temp(si_temp);
+                    lb.mixture[i][j][k].p = units.p(si_press);
+                    if ((float)i/(float)Nx <= 0.5 )
+                    {
+                        for (int a = 0; a < nSpecies; ++a) lb.species[a][i][j][k].X = XL[gas->speciesIndex(species[a])];
+                    }
+                    else
+                    {
+                        for (int a = 0; a < nSpecies; ++a) lb.species[a][i][j][k].X = XR[gas->speciesIndex(species[a])];
+                    }        
+                }
+            }
+        }
+    }
+
+
+    lb.run(1000,10);
+}
+
 #endif
 
 

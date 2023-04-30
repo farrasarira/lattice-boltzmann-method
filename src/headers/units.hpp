@@ -28,6 +28,7 @@
         float t(const float si_t) const { return (unsigned long)(si_t/s); } // time si_t = t*[s]
         float temp(const float si_temp) const {return si_temp/K;} // temperature
         float energy_mass(const float si_energy_mass) const {return si_energy_mass * (s*s)/(m*m);}
+        float energy(const float si_energy) const {return si_energy * (s*s)/(kg*m*m);}
         float frequency(const float si_frequency) const { return si_frequency*s; } // frequency si_frequency = frequency*[1/s]
         float omega(const float si_omega) const { return si_omega*s; } // frequency si_omega = omega/[s]
         float u(const float si_u) const { return si_u*s/m; } // velocity si_u = u*[m/s]
@@ -43,8 +44,9 @@
         float sigma(const float si_sigma) const { return si_sigma*sq(s)/kg; } // surface tension si_sigma = sigma*[kg/s^2]
         float thermalConductivity(const float si_lamda) const { return si_lamda*s*s*s*K / kg / m ; } // thermal conductivity
         float cp(const float si_cp) const { return si_cp*s*s*K / (m*m); }
-        float R(const float si_R) const{ return si_R*s*s*K / (m*m);}
-
+        float R(const float si_R) const{ return si_R*s*s*K / (m*m);}  
+        float p(const float si_p) const { return si_p*(m*sq(s))/kg; } // pressure 
+        
         // the following methods convert simulation units into SI units (have to be called after set_m_kg_s(...);)
         float si_x(const unsigned int x) const { return (float)x*m; } // length si_x = x*[m]
         float si_x(const float x) const { return x*m; } // length si_x = x*[m]

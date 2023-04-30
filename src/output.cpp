@@ -1,12 +1,19 @@
 
-#include "./headers/output.hpp"
+#include "output.hpp"
+#include "lbm.hpp"
+#include "cantera.hpp"
 #include <stdio.h>
 
-void OutputVTK(int &nout, LBM &lb)
+void OutputVTK(int &nout, LBM *lbm)
 {
-    int Nx = lb.getNx();
-    int Ny = lb.getNy();
-    int Nz = lb.getNz();
+	LBM lb = *lbm;
+    int Nx = lb.get_Nx();
+    int Ny = lb.get_Ny();
+    int Nz = lb.get_Nz();
+	int dx = lb.get_dx();
+	int nSpecies = lb.get_nSpecies();
+	std::vector<std::string> speciesName = lb.get_speciesName();
+	//std::cout << "nSpecies : " << speciesName[0] << " " << speciesName[1] << " " << speciesName[2] << " "  << std::endl;
 	int		i,j,k;
 	char	filename[128];
 	FILE	*fp;
@@ -30,6 +37,8 @@ void OutputVTK(int &nout, LBM &lb)
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CellType\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Temperature\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Pressure\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
+	for (int a = 0; a < nSpecies ; ++a) 
+		{fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Mole Fraction %s\" format=\"appended\" offset=\"%ld\" />\n", speciesName[a].c_str(), offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);}
 	fprintf(fp,"    </CellData>\n");
 	fprintf(fp,"    <Coordinates>\n");
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CoordinateX\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx+1);
@@ -57,9 +66,9 @@ void OutputVTK(int &nout, LBM &lb)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].u; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].v; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)lb.mixture[i][j][k].w; fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -97,6 +106,22 @@ void OutputVTK(int &nout, LBM &lb)
 		}
 	}
 
+	#ifdef MULTICOMP
+	for(int a = 0; a < nSpecies; ++a)
+	{
+		array_size=1*4*(Nx)*(Ny)*(Nz);
+		fwrite(&array_size,sizeof(int),1,fp);
+		for(k=0;k<Nz;k++){
+			for(j=0;j<Ny;j++){
+				for(i=0;i<Nx;i++)
+				{
+					val32=(float)lb.species[a][i][j][k].X; fwrite(&val32,sizeof(float),1,fp);
+				}
+			}
+		}
+	}
+	#endif
+
 	// Coordinates (vertices)
 	array_size=1*4*(Nx+1);
 	fwrite(&array_size,sizeof(int),1,fp);
@@ -116,22 +141,26 @@ void OutputVTK(int &nout, LBM &lb)
 	fclose(fp);
 }
 
-void OutputKeEns(int &step, LBM &lb)
+void OutputKeEns(int &step, LBM *lbm)
 {	
+	LBM lb = *lbm;
+	int Nx = lb.get_Nx();
+    int Ny = lb.get_Ny();
+    int Nz = lb.get_Nz();
 	double e_kinetic = 0;
 	double enstro = 0;
 	double uu = 0 ;
 	double vort = 0;
 
-	for (int i = 0; i < lb.getNx(); i++)
+	for (int i = 0; i < Nx; i++)
 	{
-		for (int j = 0; j < lb.getNy(); j++)
+		for (int j = 0; j < Ny; j++)
 		{
-			for (int k = 0; k < lb.getNz(); k++)
+			for (int k = 0; k < Nz; k++)
 			{
 				if (lb.mixture[i][j][k].type == TYPE_F)
 				{ 
-					uu = lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho + lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho + lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho*lb.mixture[i][j][k].rhow/lb.mixture[i][j][k].rho;
+					uu = lb.mixture[i][j][k].u*lb.mixture[i][j][k].u + lb.mixture[i][j][k].v*lb.mixture[i][j][k].v + lb.mixture[i][j][k].w*lb.mixture[i][j][k].w;
 					e_kinetic = e_kinetic + lb.mixture[i][j][k].rho * uu;
 					
 					int i_a = i + 1;
@@ -141,24 +170,24 @@ void OutputKeEns(int &step, LBM &lb)
 					int k_a = k + 1;
 					int k_b = k - 1;
 
-					if (i_b < 1) i_b = lb.getNx()-2;
-					else if(i_a > lb.getNx()-2) i_a = 1;
+					if (i_b < 1) i_b = Nx-2;
+					else if(i_a > Nx-2) i_a = 1;
 
-					if (j_b < 1) j_b = lb.getNy()-2;
-					else if(j_a > lb.getNy()-2) j_a = 1;
+					if (j_b < 1) j_b = Ny-2;
+					else if(j_a > Ny-2) j_a = 1;
 
-					if (k_b < 1) k_b = lb.getNz()-2;
-					else if(k_a > lb.getNz()-2) k_a = 1;
+					if (k_b < 1) k_b = Nz-2;
+					else if(k_a > Nz-2) k_a = 1;
 					
 
-					double uy = (lb.mixture[i][j_a][k].rhou/lb.mixture[i][j_a][k].rho - lb.mixture[i][j_b][k].rhou/lb.mixture[i][j_b][k].rho) / 2;
-					double uz = (lb.mixture[i][j][k_a].rhou/lb.mixture[i][j][k_a].rho - lb.mixture[i][j][k_b].rhou/lb.mixture[i][j][k_b].rho) / 2;
+					double uy = (lb.mixture[i][j_a][k].u - lb.mixture[i][j_b][k].u) / 2;
+					double uz = (lb.mixture[i][j][k_a].u - lb.mixture[i][j][k_b].u) / 2;
 					
-					double vx = (lb.mixture[i_a][j][k].rhov/lb.mixture[i_a][j][k].rho - lb.mixture[i_b][j][k].rhov/lb.mixture[i_b][j][k].rho) / 2;
-					double vz = (lb.mixture[i][j][k_a].rhov/lb.mixture[i][j][k_a].rho - lb.mixture[i][j][k_b].rhov/lb.mixture[i][j][k_b].rho) / 2;
+					double vx = (lb.mixture[i_a][j][k].v - lb.mixture[i_b][j][k].v) / 2;
+					double vz = (lb.mixture[i][j][k_a].v - lb.mixture[i][j][k_b].v) / 2;
 
-					double wx = (lb.mixture[i_a][j][k].rhow/lb.mixture[i_a][j][k].rho - lb.mixture[i_b][j][k].rhow/lb.mixture[i_b][j][k].rho) / 2;
-					double wy = (lb.mixture[i][j_a][k].rhow/lb.mixture[i][j_a][k].rho - lb.mixture[i][j_b][k].rhow/lb.mixture[i][j_b][k].rho) / 2;
+					double wx = (lb.mixture[i_a][j][k].w - lb.mixture[i_b][j][k].w) / 2;
+					double wy = (lb.mixture[i][j_a][k].w - lb.mixture[i][j_b][k].w) / 2;
 
 					vort = (wy-vz)*(wy-vz) + (uz-wx)*(uz-wx) + (vx-uy)*(vx-uy);
 					enstro = enstro + lb.mixture[i][j][k].rho * vort;
@@ -176,6 +205,13 @@ void OutputKeEns(int &step, LBM &lb)
 
 void calcError(int &t,LBM &lb)
 {
+	int Nx = lb.get_Nx();
+    int Ny = lb.get_Ny();
+    int Nz = lb.get_Nz();
+	int NX = lb.get_NX();
+    int NY = lb.get_NY();
+	int NU = lb.get_nu();
+	
 	double kx = 2.0*M_PI/NX;
 	double ky = 2.0*M_PI/NY;
 
@@ -190,11 +226,11 @@ void calcError(int &t,LBM &lb)
 
 	double td = 1.0/(NU*(kx*kx+ky*ky));
 
-	for (int i = 0; i < lb.getNx(); i++)
+	for (int i = 0; i < Nx; i++)
 	{
-		for (int j = 0; j < lb.getNy(); j++)
+		for (int j = 0; j < Ny; j++)
 		{
-			for (int k = 0; k < lb.getNz(); k++)
+			for (int k = 0; k < Nz; k++)
 			{
 				if (lb.mixture[i][j][k].type == TYPE_F)
 				{
@@ -203,8 +239,8 @@ void calcError(int &t,LBM &lb)
 					ua =-0.04 * cos(kx*X) * sin(ky*Y) *exp(-1.0*t/td);
 					va = 0.04 * sin(kx*X) * cos(ky*Y) *exp(-1.0*t/td);
 
-					sumue2 += (lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho - ua) * (lb.mixture[i][j][k].rhou/lb.mixture[i][j][k].rho - ua);
-					sumve2 += (lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho - va) * (lb.mixture[i][j][k].rhov/lb.mixture[i][j][k].rho - va);
+					sumue2 += (lb.mixture[i][j][k].u/lb.mixture[i][j][k].rho - ua) * (lb.mixture[i][j][k].u/lb.mixture[i][j][k].rho - ua);
+					sumve2 += (lb.mixture[i][j][k].v/lb.mixture[i][j][k].rho - va) * (lb.mixture[i][j][k].v/lb.mixture[i][j][k].rho - va);
 					
 					sumua2 += ua * ua;
 					sumva2 += va * va;

@@ -4,7 +4,12 @@
     #include <math.h>
     #include <iostream>
     #include <vector>
+    #include <string>
+    #include <memory>
     #include "defines.hpp"
+    #include "Eigen"
+    #include "output.hpp"
+    #include "cantera.hpp"
  
 
     #ifdef D2Q9
@@ -45,11 +50,10 @@
             // ###### Momentum Kinetic Equation Parameter ######
             double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
             double rho;                 // macroscopic quantity
-            double rhou = 0.0;          // velocity in x-direction
-            double rhov = 0.0;          // velocity in y-direction
-            double rhow = 0.0;          // velocity in z-direction
+            double u = 0.0;          // velocity in x-direction
+            double v = 0.0;          // velocity in y-direction
+            double w = 0.0;          // velocity in z-direction
             double p = 1./3.;           // pressure
-            double mmass = 1.0;         // molar mass
             double p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
                                      {0., 0., 0.},
                                      {0., 0., 0.}};
@@ -64,6 +68,11 @@
             double dQdevx = 0.0;
             double dQdevy = 0.0;
             double dQdevz = 0.0;
+
+            #ifdef MULTICOMP
+                std::shared_ptr<Cantera::Solution> sol; // Cantera Objects
+            #endif
+
     };
 
     class SPECIES
@@ -72,47 +81,88 @@
             // ###### Momentum Kinetic Equation Parameter ######
             double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
             double rho;                 // density
-            double rhou = 0.0;          // velocity in x-direction
-            double rhov = 0.0;          // velocity in y-direction
-            double rhow = 0.0;          // velocity in z-direction
+            double u = 0.0;          // velocity in x-direction
+            double v = 0.0;          // velocity in y-direction
+            double w = 0.0;          // velocity in z-direction
+            double X = 0.0;             // mole fraction
+
+            double Ha = 0.0;    // enthalpy
+
     };
 
     class LBM
     {
         private:
-            int Nx, Ny, Nz = 1;
-            int nSpecies = 1;
+            int dx = 1;
+            int dy = 1;
+            int dz = 1;
+            int Nx = 1;
+            int Ny = 1;
+            int Nz = 1;
+            int dt_sim = 1;
+            int nstep = 1000;
+            int tout = 100;
+
+            double nu = 0.001;      // kinematic viscosity
+            double gas_const = 1.0; // gas constant
+            double prtl = 1.0;      // prantdl number
+            double gamma = 2.0;     // gamma (Cp/Cv)
+
+            int nSpecies = 0;
+            std::vector<std::string> speciesName;
         
         public:
             LATTICE *** mixture;
-            std::vector<SPECIES***> species;
+            #ifdef MULTICOMP
+                std::vector<SPECIES***> species;
+            #endif
 
         public:
             // constructor
-            LBM(int Nx, int Ny, int Nz);
-            LBM(int Nx, int Ny, int Nz, int nSpecies);
+            LBM(int Nx, int Ny, int Nz, double NU);
+            LBM(int Nx, int Ny, int Nz, std::vector<std::string> species);
 
             // calculate moment
-            void calculate_moment(LATTICE ***fluid);
+            void calculate_moment();
+            void calculate_moment(SPECIES ***species);
 
             // calculate equlibrium density
             double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
             double calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R_tensor[][3], double theta);
 
             // initialize
-            void Init(LATTICE ***fluid);    // initialize equilibrium  
-            void Init(SPECIES*** species); 
+            void Init();    // initialize equilibrium  
+            void Init(SPECIES*** species, int idxSpecies); 
 
             // collision operator
-            void Collide(LATTICE ***fluid); // BGK collision
+            void Collide(); // BGK collision
+            void Collide_Species();
             
             // stream
-            void Streaming(LATTICE ***fluid);   
+            void Streaming();   
 
+            // run simulation
+            void run(int nstep, int tout);
+            
+            // get private data
+            int get_Nx(){return Nx;};
+            int get_Ny(){return Ny;};
+            int get_Nz(){return Nz;};
+            int get_NX(){return Nx-2;};
+            int get_NY(){return Ny-2;};
+            int get_NZ(){return Nz-2;};
+            int get_dx(){return dx;};
+            int get_dy(){return dy;};
+            int get_dz(){return dz;};
+            double get_nu(){return nu;};
+            int get_nSpecies(){return nSpecies;};
+            std::vector<std::string> get_speciesName(){return speciesName;};
 
-            int getNx(){return Nx;};
-            int getNy(){return Ny;};
-            int getNz(){return Nz;};
+            // set private data
+            void set_nu(double nu){this->nu = nu;};
+            void set_gasconst(double gas_const){this->gas_const = gas_const;};
+            void set_prtl(double prtl){this->prtl = prtl;};
+            void set_gamma(double gamma){this->gamma = gamma;};
     };
 
 #endif

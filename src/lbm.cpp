@@ -7,15 +7,14 @@
 #include <numeric>
 #include <vector>
 
-// using namespace Cantera;
 
-// std::vector<std::shared_ptr<Cantera::Solution>> sols;
-
-LBM::LBM(int Nx, int Ny, int Nz)
+LBM::LBM(int Nx, int Ny, int Nz, double NU)
 {
     this->Nx = Nx + 2;
     this->Ny = Ny + 2;
     this->Nz = Nz + 2;
+    this->nu = NU;
+
     // allocate memory for lattice
     mixture = new LATTICE **[this->Nx];
     for (int i = 0; i < this->Nx; ++i)
@@ -26,22 +25,16 @@ LBM::LBM(int Nx, int Ny, int Nz)
             mixture[i][j] = new LATTICE [this->Nz];
         }
     }
-
-    // int nThreads  = omp_get_max_threads();
-
-    // for(int i = 0; i < nThreads; ++i)
-    // {
-    //     auto sol = newSolution("gri30.yaml", "gri30");
-    //     sols.emplace_back(sol);
-    // }
 }
 
-LBM::LBM(int Nx, int Ny, int Nz, int nSpecies)
+#ifdef MULTICOMP
+LBM::LBM(int Nx, int Ny, int Nz, std::vector<std::string> species)
 {
     this->Nx = Nx + 2;
     this->Ny = Ny + 2;
     this->Nz = Nz + 2;
-    this->nSpecies = nSpecies;
+    this->speciesName = species;
+    this->nSpecies = species.size();
 
     // allocate memory for mixture
     mixture = new LATTICE **[this->Nx];
@@ -58,34 +51,35 @@ LBM::LBM(int Nx, int Ny, int Nz, int nSpecies)
     this->species.resize(nSpecies);
     for(int p = 0; p < nSpecies; ++p)
     {
-        species[p] = new SPECIES **[this->Nx];
+        this->species[p] = new SPECIES **[this->Nx];
         for (int i = 0; i < this->Nx; ++i)
         {
-            species[p][i] = new SPECIES *[this->Ny];
+            this->species[p][i] = new SPECIES *[this->Ny];
             for (int j = 0; j < this->Ny; ++j)
             {
-                species[p][i][j] = new SPECIES [this->Nz];
+                this->species[p][i][j] = new SPECIES [this->Nz];
             }
         }
     }
 }
+#endif
 
-void LBM::calculate_moment(LATTICE ***fluid)
+void LBM::calculate_moment()
 {
     std::vector<std::vector<std::vector<double>>> dQdevx(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
     std::vector<std::vector<std::vector<double>>> dQdevy(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
     std::vector<std::vector<std::vector<double>>> dQdevz(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
 
-    // #pragma omp parallel for schedule(static, 1)
+    #pragma omp parallel for schedule(static, 1)
     for (int i = 0; i < Nx; ++i)
     {
         for (int j = 0; j < Ny; ++j)
         {
             for (int k = 0; k < Nz; ++k)
             {
-                if (fluid[i][j][k].type==TYPE_F)
+                if (mixture[i][j][k].type==TYPE_F)
                 {
-                    // Raw moment
+                    // mixture moment
                     double rho = 0.0;
                     double rhou = 0.0;
                     double rhov = 0.0;
@@ -100,16 +94,16 @@ void LBM::calculate_moment(LATTICE ***fluid)
                     {
                         for(int q=0; q < 3; ++q)
                         {
-                            fluid[i][j][k].p_tensor[p][q] = 0.0;
+                            mixture[i][j][k].p_tensor[p][q] = 0.0;
                         }
                     }
                     
                     for (int l = 0; l < npop; ++l)
                     {
-                        rho+=fluid[i][j][k].f[l];
-                        rhou+=fluid[i][j][k].f[l]*cx[l];
-                        rhov+=fluid[i][j][k].f[l]*cy[l];
-                        rhow+=fluid[i][j][k].f[l]*cz[l];
+                        rho+=mixture[i][j][k].f[l];
+                        rhou+=mixture[i][j][k].f[l]*cx[l];
+                        rhov+=mixture[i][j][k].f[l]*cy[l];
+                        rhow+=mixture[i][j][k].f[l]*cz[l];
                         
                         double velocity_set[3] = {cx[l], cy[l], cz[l]};
 
@@ -117,67 +111,76 @@ void LBM::calculate_moment(LATTICE ***fluid)
                         {
                             for(int q=0; q < 3; ++q)
                             {
-                                fluid[i][j][k].p_tensor[p][q] += fluid[i][j][k].f[l]*velocity_set[p]*velocity_set[q];
+                                mixture[i][j][k].p_tensor[p][q] += mixture[i][j][k].f[l]*velocity_set[p]*velocity_set[q];
                             }
                         }
 
-                        rhoe += fluid[i][j][k].g[l];
-                        heat_flux_x += fluid[i][j][k].g[l]*cx[l];
-                        heat_flux_y += fluid[i][j][k].g[l]*cy[l];
-                        heat_flux_z += fluid[i][j][k].g[l]*cz[l];
+                        rhoe += mixture[i][j][k].g[l];
+                        heat_flux_x += mixture[i][j][k].g[l]*cx[l];
+                        heat_flux_y += mixture[i][j][k].g[l]*cy[l];
+                        heat_flux_z += mixture[i][j][k].g[l]*cz[l];
                     }
 
-                    fluid[i][j][k].rho = rho;
-                    fluid[i][j][k].rhou = rhou;
-                    fluid[i][j][k].rhov = rhov;
-                    fluid[i][j][k].rhow = rhow;
-                    fluid[i][j][k].rhoe = rhoe;
-                    fluid[i][j][k].energy_flux[0]=heat_flux_x;
-                    fluid[i][j][k].energy_flux[1]=heat_flux_y;
-                    fluid[i][j][k].energy_flux[2]=heat_flux_z;
-                    
-                    // std::cout << "rho : " << fluid[i][j][k].rho << std::endl; 
-                    // std::cout << "R : " << fluid[i][j][k].gas_const << std::endl;
-                    // std::cout << "temp : " << fluid[i][j][k].temp << std::endl;
-                    
-                    //std::cout << units.si_energy_mass(fluid[i][j][k].internalEnergy) << std::endl;
+                    mixture[i][j][k].rho = rho;
+                    mixture[i][j][k].u = rhou / rho;
+                    mixture[i][j][k].v = rhov / rho;
+                    mixture[i][j][k].w = rhow / rho;
+                    mixture[i][j][k].rhoe = rhoe;
+                    mixture[i][j][k].energy_flux[0]=heat_flux_x;
+                    mixture[i][j][k].energy_flux[1]=heat_flux_y;
+                    mixture[i][j][k].energy_flux[2]=heat_flux_z;
 
-                    // size_t rank = omp_get_thread_num();
-                    // auto gas = sols[rank]->thermo();
-                    // auto trans = sols[rank]->transport();
+                    double velocity[3] = {  mixture[i][j][k].u,
+                                            mixture[i][j][k].v, 
+                                            mixture[i][j][k].w};
+                    double internalEnergy=mixture[i][j][k].rhoe/mixture[i][j][k].rho - 0.5*v_sqr(velocity[0], velocity[1], velocity[2]);
+                    #ifndef MULTICOMP
+                        double cv = gas_const / (gamma - 1.0);
+                        mixture[i][j][k].temp = internalEnergy / cv;
+                        mixture[i][j][k].p = mixture[i][j][k].rho*gas_const*mixture[i][j][k].temp;
+                    #else
+                        // species moment
+                        auto gas = mixture[i][j][k].sol->thermo();
+                        std::vector<double> Y (gas->nSpecies());
+                        std::vector<double> X (gas->nSpecies());
 
-                    // gas->setState_UV(units.si_energy_mass(fluid[i][j][k].internalEnergy), 1.0/units.si_rho(fluid[i][j][k].rho));
-                    // fluid[i][j][k].mu =  units.mu(trans->viscosity());
-                    // //fluid[i][j][k].nu = NU; // debugg...
-                    // fluid[i][j][k].temp = units.temp(gas->temperature());
-                    // //fluid[i][j][k].temp = 2./3. * fluid[i][j][k].internalEnergy / fluid[i][j][k].gas_const; // debugg...
-                    // fluid[i][j][k].enthalpy = units.energy_mass(gas->enthalpy_mass());
-                    // //fluid[i][j][k].enthalpy = 5.0/2.0 * fluid[i][j][k].gas_const * fluid[i][j][k].temp; // debugg...
-                    // fluid[i][j][k].conduc_coeff = units.thermalConductivity(trans->thermalConductivity());
-                    // fluid[i][j][k].cp = units.cp(gas->cp_mass());
-                    // fluid[i][j][k].p=fluid[i][j][k].rho*fluid[i][j][k].gas_const*fluid[i][j][k].temp;
+                        for(int a = 0; a < nSpecies; ++a)
+                        {
+                            double rho = 0.0;
+                            double rhou = 0.0;
+                            double rhov = 0.0;
+                            double rhow = 0.0;
+                            
+                            for (int l = 0; l < npop; ++l)
+                            {
+                                rho  += species[a][i][j][k].f[l];
+                                rhou += species[a][i][j][k].f[l]*cx[l];
+                                rhov += species[a][i][j][k].f[l]*cy[l];
+                                rhow += species[a][i][j][k].f[l]*cz[l];
+                            }
 
-                    // fluid[i][j][k].omega = 2*fluid[i][j][k].p*dt_sim / (fluid[i][j][k].p*dt_sim + 2*fluid[i][j][k].mu);
-                    // fluid[i][j][k].omega1 = 2*fluid[i][j][k].p*fluid[i][j][k].cp*dt_sim / (fluid[i][j][k].p*fluid[i][j][k].cp*dt_sim + 2*fluid[i][j][k].conduc_coeff);
-                    // //double konst = PR * fluid[i][j][k].omega / (2 - fluid[i][j][k].omega); // debugg...
-                    // //fluid[i][j][k].omega1 = 2 * konst /(1 + konst); // debugg...
+                            species[a][i][j][k].rho = rho;
+                            species[a][i][j][k].u = rhou / rho;
+                            species[a][i][j][k].v = rhov / rho;
+                            species[a][i][j][k].w = rhow / rho;
+                            Y[gas->speciesIndex(speciesName[a])]  = species[a][i][j][k].rho / mixture[i][j][k].rho;
+                        } 
+                        gas->setState_UV(units.si_energy_mass(internalEnergy), 1/units.si_rho(rho));
+                        gas->setMassFractions(&Y[0]);
+                        gas->getMoleFractions(&X[0]);
+                        for(int a = 0; a < nSpecies; ++a) species[a][i][j][k].X = X[gas->speciesIndex(speciesName[a])];
+                        mixture[i][j][k].temp = units.temp(gas->temperature());
+                        mixture[i][j][k].p = units.p(gas->pressure());
+                    #endif
 
-                    double velocity[3] = {  fluid[i][j][k].rhou/fluid[i][j][k].rho,
-                                            fluid[i][j][k].rhov/fluid[i][j][k].rho, 
-                                            fluid[i][j][k].rhow/fluid[i][j][k].rho};
-                    double internalEnergy=fluid[i][j][k].rhoe/fluid[i][j][k].rho - 0.5*v_sqr(velocity[0], velocity[1], velocity[2]);
-                    double gas_const = GAS_CONST/fluid[i][j][k].mmass;
-                    double cv = gas_const / (GAMMA - 1.0);
-                    fluid[i][j][k].temp = internalEnergy / cv;
-                    fluid[i][j][k].p = fluid[i][j][k].rho*gas_const*fluid[i][j][k].temp;
                 }
                 else
                 {
-                    fluid[i][j][k].rho=1.0;
-                    fluid[i][j][k].rhou=0.0;
-                    fluid[i][j][k].rhov=0.0;
-                    fluid[i][j][k].rhow=0.0;
-                    fluid[i][j][k].rhoe=0.0;
+                    mixture[i][j][k].rho=1.0;
+                    mixture[i][j][k].u=0.0;
+                    mixture[i][j][k].v=0.0;
+                    mixture[i][j][k].w=0.0;
+                    mixture[i][j][k].rhoe=0.0;
                 }
             }
         }
@@ -190,32 +193,35 @@ void LBM::calculate_moment(LATTICE ***fluid)
         {
             for(int k = 0; k < Nz; ++k)
             {
-                if (fluid[i][j][k].type == TYPE_F || fluid[i][j][k].type == TYPE_E)     
+                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
                 {
-                    double gas_const = GAS_CONST/fluid[i][j][k].mmass;
+                    #ifdef MULTICOMP
+                        auto gas = mixture[i][j][k].sol->thermo();
+                        gas_const = units.cp(Cantera::GasConstant/gas->meanMolecularWeight());
+                    #endif
                     if (i == 1)
                     {
-                        dQdevx[i][j][k] = ((fluid[i+1][j][k].rhou*(1-3*gas_const*fluid[i+1][j][k].temp)-fluid[i+1][j][k].rho*cb(fluid[i+1][j][k].rhou/fluid[i+1][j][k].rho)) - (fluid[i][j][k].rhou*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhou/fluid[i][j][k].rho)) ) /(dx);
+                        dQdevx[i][j][k] = ( (mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u)) - (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) ) /(dx);
                     }
                     else
                     {
-                        dQdevx[i][j][k] = ((fluid[i][j][k].rhou*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhou/fluid[i][j][k].rho)) - (fluid[i-1][j][k].rhou*(1-3*gas_const*fluid[i-1][j][k].temp)-fluid[i-1][j][k].rho*cb(fluid[i-1][j][k].rhou/fluid[i-1][j][k].rho)) ) /(dx);
+                        dQdevx[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) - (mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u)) ) /(dx);
                     }
                     if (j == 1)
                     {
-                        dQdevy[i][j][k] = ((fluid[i][j+1][k].rhov*(1-3*gas_const*fluid[i][j+1][k].temp)-fluid[i][j+1][k].rho*cb(fluid[i][j+1][k].rhov/fluid[i][j+1][k].rho)) - (fluid[i][j][k].rhov*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhov/fluid[i][j][k].rho))) /(dy);
+                        dQdevy[i][j][k] = ( (mixture[i][j+1][k].rho*mixture[i][j+1][k].v*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].v)) - (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) ) /(dy);
                     }
                     else
                     {
-                        dQdevy[i][j][k] = ((fluid[i][j][k].rhov*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhov/fluid[i][j][k].rho)) - (fluid[i][j-1][k].rhov*(1-3*gas_const*fluid[i][j-1][k].temp)-fluid[i][j-1][k].rho*cb(fluid[i][j-1][k].rhov/fluid[i][j-1][k].rho)) ) /(dy);
+                        dQdevy[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) - (mixture[i][j-1][k].rho*mixture[i][j-1][k].v*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].v)) ) /(dy);
                     }
                     if (k == 1)
                     {
-                        dQdevz[i][j][k] = ((fluid[i][j][k+1].rhow*(1-3*gas_const*fluid[i][j][k+1].temp)-fluid[i][j][k+1].rho*cb(fluid[i][j][k+1].rhow/fluid[i][j][k+1].rho)) - (fluid[i][j][k].rhow*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhow/fluid[i][j][k].rho)))  /(dz);
+                        dQdevz[i][j][k] = ( (mixture[i][j][k+1].rho*mixture[i][j][k+1].w*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].w)) - (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w)) ) /(dz);
                     }
                     else
                     {
-                        dQdevz[i][j][k] = ((fluid[i][j][k].rhow*(1-3*gas_const*fluid[i][j][k].temp)-fluid[i][j][k].rho*cb(fluid[i][j][k].rhow/fluid[i][j][k].rho)) - (fluid[i][j][k-1].rhow*(1-3*gas_const*fluid[i][j][k-1].temp)-fluid[i][j][k-1].rho*cb(fluid[i][j][k-1].rhow/fluid[i][j][k-1].rho)) ) /(dz);
+                        dQdevz[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w))- (mixture[i][j][k-1].rho*mixture[i][j][k-1].w*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].w)) ) /(dz);
                     }
 
                 }
@@ -230,18 +236,18 @@ void LBM::calculate_moment(LATTICE ***fluid)
         {
             for(int k = 0; k < Nz; ++k)
             {
-                if (fluid[i][j][k].type == TYPE_F || fluid[i][j][k].type == TYPE_E)     
+                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
                 {
-                    if (i == Nx-2) fluid[i][j][k].dQdevx = limiterVanleer(dQdevx[i-1][j][k],dQdevx[i][j][k]);
-                    else fluid[i][j][k].dQdevx = limiterVanleer(dQdevx[i][j][k],dQdevx[i+1][j][k]);
+                    if (i == Nx-2) mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i-1][j][k],dQdevx[i][j][k]);
+                    else mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i][j][k],dQdevx[i+1][j][k]);
                     
-                    //if (fluid[i][j][k].dQdevx != 0.0) std::cout << "dQdev : " << fluid[i][j][k].dQdevx << " | " << i << " | " << j << " | " << k << std::endl;
+                    //if (mixture[i][j][k].dQdevx != 0.0) std::cout << "dQdev : " << mixture[i][j][k].dQdevx << " | " << i << " | " << j << " | " << k << std::endl;
 
-                    if (j == Ny-2) fluid[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j-1][k],dQdevy[i][j][k]);
-                    else fluid[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j][k],dQdevy[i][j+1][k]);
+                    if (j == Ny-2) mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j-1][k],dQdevy[i][j][k]);
+                    else mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j][k],dQdevy[i][j+1][k]);
 
-                    if (k == Nz-2) fluid[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k-1],dQdevz[i][j][k]);
-                    else fluid[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k],dQdevz[i][j][k+1]);
+                    if (k == Nz-2) mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k-1],dQdevz[i][j][k]);
+                    else mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k],dQdevz[i][j][k+1]);
                 }
             }
         }
@@ -323,32 +329,53 @@ double LBM::calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R
 }
 
 
-void LBM::Init(LATTICE ***fluid)
+void LBM::Init()
 {
-    #pragma omp parallel for schedule(static, 1)
+    //#pragma omp parallel for schedule(static, 1)
     for(int i = 0; i < Nx ; ++i)
     {
         for(int j = 0; j < Ny; ++j)
         {
             for(int k = 0; k < Nz; ++k)
             {    
-                if (fluid[i][j][k].type == TYPE_F || fluid[i][j][k].type == TYPE_E)     
-                {                
-                    double velocity[3] = {  fluid[i][j][k].rhou/fluid[i][j][k].rho,
-                                            fluid[i][j][k].rhov/fluid[i][j][k].rho, 
-                                            fluid[i][j][k].rhow/fluid[i][j][k].rho};
-                    double gas_const = GAS_CONST/fluid[i][j][k].mmass;
-                    double cv = gas_const / (GAMMA - 1.0);
-                    double cp = cv + gas_const;
-                    double internal_energy = cv * fluid[i][j][k].temp;
-                    fluid[i][j][k].p = fluid[i][j][k].rho*gas_const*fluid[i][j][k].temp;
-                    fluid[i][j][k].rhoe = fluid[i][j][k].rho*(internal_energy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]));
-                    double theta = gas_const*fluid[i][j][k].temp;   
-                    double enthalpy = cp * fluid[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
+                std::cout << i << " " << j << " " << k << std::endl;
+                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
+                {            
+                    #ifndef MULTICOMP    
+                        double velocity[3] = {  mixture[i][j][k].u,
+                                                mixture[i][j][k].v, 
+                                                mixture[i][j][k].w};
+                        double cv = gas_const / (gamma - 1.0);
+                        double cp = cv + gas_const;
+                        double internal_energy = cv * mixture[i][j][k].temp;
+                        mixture[i][j][k].p = mixture[i][j][k].rho*gas_const*mixture[i][j][k].temp;
+                        mixture[i][j][k].rhoe = mixture[i][j][k].rho*(internal_energy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]));
+                        double theta = gas_const*mixture[i][j][k].temp;   
+                        double enthalpy = cp * mixture[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
+                    #else
+                        mixture[i][j][k].sol = Cantera::newSolution("gri30.yaml", "gri30");
+                        auto gas = mixture[i][j][k].sol->thermo();
+                        std::vector <double> X (gas->nSpecies());
+                        for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;
+                        gas->setState_TPX(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].p), &X[0]);
+                       
+                        double internal_energy = units.energy_mass(gas->intEnergy_mass());
+                        double enthalpy = units.energy_mass(gas->enthalpy_mass());
+                        double velocity[3] = {  mixture[i][j][k].u,
+                                                mixture[i][j][k].v, 
+                                                mixture[i][j][k].w};
+                        mixture[i][j][k].rho = units.rho(gas->density());
+                        mixture[i][j][k].rhoe = mixture[i][j][k].rho*(internal_energy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]));
+                        double theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());
+
+                        X.clear();
+                    #endif
+                        
+
                     double total_enthalpy = enthalpy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]);
-                    double eq_heat_flux[3] = {  total_enthalpy*fluid[i][j][k].rhou,
-                                                total_enthalpy*fluid[i][j][k].rhov,
-                                                total_enthalpy*fluid[i][j][k].rhow};
+                    double eq_heat_flux[3] = {  total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].u,
+                                                total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].v,
+                                                total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].w};
                     double eq_p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
                                                 {0., 0., 0.},
                                                 {0., 0., 0.}};
@@ -360,8 +387,8 @@ void LBM::Init(LATTICE ***fluid)
                     {
                             for(int q=0; q < 3; ++q)
                             {
-                                eq_p_tensor[p][q] = (p==q) ? fluid[i][j][k].p+fluid[i][j][k].rho*velocity[p]*velocity[q] : fluid[i][j][k].rho*velocity[p]*velocity[q]; 
-                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + fluid[i][j][k].p*velocity[p]*velocity[q];
+                                eq_p_tensor[p][q] = (p==q) ? mixture[i][j][k].p+mixture[i][j][k].rho*velocity[p]*velocity[q] : mixture[i][j][k].rho*velocity[p]*velocity[q]; 
+                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + mixture[i][j][k].p*velocity[p]*velocity[q];
                             }  
                     }
 
@@ -370,18 +397,33 @@ void LBM::Init(LATTICE ***fluid)
                     for (int l = 0; l < npop; ++l)
                     {
                         // ------------- Mass and Momentum Initialization -----------------------------
-                        fluid[i][j][k].f[l]=calculate_feq(l, fluid[i][j][k].rho, velocity, theta, corr);
-                        fluid[i][j][k].g[l]=calculate_geq(l, fluid[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
+                        mixture[i][j][k].f[l]=calculate_feq(l, mixture[i][j][k].rho, velocity, theta, corr);
+                        mixture[i][j][k].g[l]=calculate_geq(l, mixture[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
                     }     
+
+                    #ifdef MULTICOMP
+                    for(int a = 0; a < nSpecies; ++a)
+                    {
+                        double velocity[3] = {  species[a][i][j][k].u,
+                                                species[a][i][j][k].v, 
+                                                species[a][i][j][k].w};
+                        double theta = units.energy_mass(gas->RT() / gas->molecularWeight(gas->speciesIndex(speciesName[a])));
+
+                        for (int l = 0; l < npop; ++l)
+                        {
+                            species[a][i][j][k].f[l]=calculate_feq(l, species[a][i][j][k].rho, velocity, theta, corr);
+                        }   
+                    }
+                    #endif
                 }
             }
         }
     }
 }
 
-void LBM::Collide(LATTICE ***fluid)
+void LBM::Collide()
 {
-    calculate_moment(fluid);
+    calculate_moment();
     #pragma omp parallel for schedule(static, 1)
     for(int i = 0; i < Nx ; ++i)
     {
@@ -389,24 +431,37 @@ void LBM::Collide(LATTICE ***fluid)
         {
             for(int k = 0; k < Nz; ++k)
             {    
-                if (fluid[i][j][k].type == TYPE_F || fluid[i][j][k].type == TYPE_E)     
+                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
                 {   
-                    double velocity[3] = {  fluid[i][j][k].rhou/fluid[i][j][k].rho,
-                                            fluid[i][j][k].rhov/fluid[i][j][k].rho, 
-                                            fluid[i][j][k].rhow/fluid[i][j][k].rho};
-                    double gas_const = GAS_CONST/fluid[i][j][k].mmass;
-                    double cv = gas_const / (GAMMA - 1.0);
-                    double cp = cv + gas_const;
-                    double theta = gas_const*fluid[i][j][k].temp;
-                    double mu = NU*fluid[i][j][k].rho;
-                    double omega = 2*fluid[i][j][k].p*dt_sim / (fluid[i][j][k].p*dt_sim + 2*mu);
-                    double conduc_coeff = mu*cp/PR;
-                    double omega1 = 2*fluid[i][j][k].p*cp*dt_sim / (fluid[i][j][k].p*cp*dt_sim + 2*conduc_coeff);
-                    double enthalpy = cp * fluid[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
+                    #ifndef MULTICOMP
+                        double cv = gas_const / (gamma - 1.0);
+                        double cp = cv + gas_const;
+                        double theta = gas_const*mixture[i][j][k].temp;
+                        double mu = nu*mixture[i][j][k].rho;
+                        double conduc_coeff = mu*cp/prtl;
+                        double enthalpy = cp * mixture[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
+                    
+                    #else
+                        auto gas =  mixture[i][j][k].sol->thermo();
+                        double cp = units.cp(gas->cp_mass());
+                        double enthalpy = units.energy_mass(gas->enthalpy_mass());
+
+                        auto trans = mixture[i][j][k].sol->transport();
+                        double mu = units.mu(trans->viscosity());
+                        double conduc_coeff = units.thermalConductivity(trans->thermalConductivity());
+
+                        double theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());
+                    #endif
+
+                    double velocity[3] = {  mixture[i][j][k].u,
+                                            mixture[i][j][k].v, 
+                                            mixture[i][j][k].w};
+                    double omega1 = 2*mixture[i][j][k].p*cp*dt_sim / (mixture[i][j][k].p*cp*dt_sim + 2*conduc_coeff);
+                    double omega = 2*mixture[i][j][k].p*dt_sim / (mixture[i][j][k].p*dt_sim + 2*mu);
                     double total_enthalpy = enthalpy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]);
-                    double eq_heat_flux[3] = {  total_enthalpy*fluid[i][j][k].rhou,
-                                                total_enthalpy*fluid[i][j][k].rhov,
-                                                total_enthalpy*fluid[i][j][k].rhow};
+                    double eq_heat_flux[3] = {  total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].u,
+                                                total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].v,
+                                                total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].w};
                     double eq_p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
                                                 {0., 0., 0.},
                                                 {0., 0., 0.}};
@@ -418,30 +473,30 @@ void LBM::Collide(LATTICE ***fluid)
                     {
                             for(int q=0; q < 3; ++q)
                             {
-                                eq_p_tensor[p][q] = (p==q) ? fluid[i][j][k].p+fluid[i][j][k].rho*velocity[p]*velocity[q] : fluid[i][j][k].rho*velocity[p]*velocity[q]; 
-                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + fluid[i][j][k].p*velocity[p]*velocity[q];
+                                eq_p_tensor[p][q] = (p==q) ? mixture[i][j][k].p+mixture[i][j][k].rho*velocity[p]*velocity[q] : mixture[i][j][k].rho*velocity[p]*velocity[q]; 
+                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + mixture[i][j][k].p*velocity[p]*velocity[q];
                             }  
                     }
 
-                    double str_heat_flux[3] ={  fluid[i][j][k].energy_flux[0] - velocity[0]*(fluid[i][j][k].p_tensor[0][0]-eq_p_tensor[0][0]) - velocity[1]*(fluid[i][j][k].p_tensor[1][0]-eq_p_tensor[1][0]) - velocity[2]*(fluid[i][j][k].p_tensor[2][0]-eq_p_tensor[2][0]) - 0.5*dt_sim*velocity[0]*fluid[i][j][k].dQdevx,
-                                                fluid[i][j][k].energy_flux[1] - velocity[0]*(fluid[i][j][k].p_tensor[0][1]-eq_p_tensor[0][1]) - velocity[1]*(fluid[i][j][k].p_tensor[1][1]-eq_p_tensor[1][1]) - velocity[2]*(fluid[i][j][k].p_tensor[2][1]-eq_p_tensor[2][1]) - 0.5*dt_sim*velocity[1]*fluid[i][j][k].dQdevy,
-                                                fluid[i][j][k].energy_flux[2] - velocity[0]*(fluid[i][j][k].p_tensor[0][2]-eq_p_tensor[0][2]) - velocity[1]*(fluid[i][j][k].p_tensor[1][2]-eq_p_tensor[1][2]) - velocity[2]*(fluid[i][j][k].p_tensor[2][2]-eq_p_tensor[2][2]) - 0.5*dt_sim*velocity[2]*fluid[i][j][k].dQdevz};
+                    //double q_diff [3] += {(omega1/(omega-omega1)) * mixture[i][j][k].rho * };
 
-                    double corr[3] = {  dt_sim*(2-omega)/(2*fluid[i][j][k].rho*omega)*fluid[i][j][k].dQdevx,
-                                        dt_sim*(2-omega)/(2*fluid[i][j][k].rho*omega)*fluid[i][j][k].dQdevy,
-                                        dt_sim*(2-omega)/(2*fluid[i][j][k].rho*omega)*fluid[i][j][k].dQdevz};
+                    double str_heat_flux[3] ={  mixture[i][j][k].energy_flux[0] - velocity[0]*(mixture[i][j][k].p_tensor[0][0]-eq_p_tensor[0][0]) - velocity[1]*(mixture[i][j][k].p_tensor[1][0]-eq_p_tensor[1][0]) - velocity[2]*(mixture[i][j][k].p_tensor[2][0]-eq_p_tensor[2][0]) - 0.5*dt_sim*velocity[0]*mixture[i][j][k].dQdevx,
+                                                mixture[i][j][k].energy_flux[1] - velocity[0]*(mixture[i][j][k].p_tensor[0][1]-eq_p_tensor[0][1]) - velocity[1]*(mixture[i][j][k].p_tensor[1][1]-eq_p_tensor[1][1]) - velocity[2]*(mixture[i][j][k].p_tensor[2][1]-eq_p_tensor[2][1]) - 0.5*dt_sim*velocity[1]*mixture[i][j][k].dQdevy,
+                                                mixture[i][j][k].energy_flux[2] - velocity[0]*(mixture[i][j][k].p_tensor[0][2]-eq_p_tensor[0][2]) - velocity[1]*(mixture[i][j][k].p_tensor[1][2]-eq_p_tensor[1][2]) - velocity[2]*(mixture[i][j][k].p_tensor[2][2]-eq_p_tensor[2][2]) - 0.5*dt_sim*velocity[2]*mixture[i][j][k].dQdevz};
 
-                    // double corr[3] = {0, 0, 0};
+                    double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*mixture[i][j][k].dQdevx,
+                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*mixture[i][j][k].dQdevy,
+                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*mixture[i][j][k].dQdevz};
 
                     for (int l = 0; l < npop; ++l)
                     {
                         // ------------- Mass and Momentum Initialization -----------------------------
-                        double feq = calculate_feq(l, fluid[i][j][k].rho, velocity, theta, corr);
-                        double geq = calculate_geq(l, fluid[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
-                        double gstr = calculate_geq(l, fluid[i][j][k].rhoe, str_heat_flux, eq_R_tensor, theta);
+                        double feq = calculate_feq(l, mixture[i][j][k].rho, velocity, theta, corr);
+                        double geq = calculate_geq(l, mixture[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
+                        double gstr = calculate_geq(l, mixture[i][j][k].rhoe, str_heat_flux, eq_R_tensor, theta);
 
-                        fluid[i][j][k].fpc[l]= (1.0-omega)*fluid[i][j][k].f[l] + omega*feq;
-                        fluid[i][j][k].gpc[l] = fluid[i][j][k].g[l] + omega1*(geq-fluid[i][j][k].g[l]) + (omega-omega1)*(gstr-fluid[i][j][k].g[l]);
+                        mixture[i][j][k].fpc[l]= (1.0-omega)*mixture[i][j][k].f[l] + omega*feq;
+                        mixture[i][j][k].gpc[l] = mixture[i][j][k].g[l] + omega1*(geq-mixture[i][j][k].g[l]) + (omega-omega1)*(gstr-mixture[i][j][k].g[l]);
                     }     
                 }
             }
@@ -450,7 +505,7 @@ void LBM::Collide(LATTICE ***fluid)
 }
 
 
-void LBM::Streaming(LATTICE ***fluid)
+void LBM::Streaming()
 {
     int i_nb, j_nb, k_nb;
     #pragma omp parallel for schedule(static, 1)
@@ -460,7 +515,7 @@ void LBM::Streaming(LATTICE ***fluid)
         {
             for(int k = 0; k<Nz; ++k)
             {
-                if(fluid[i][j][k].type==TYPE_F)
+                if(mixture[i][j][k].type==TYPE_F)
                 {
                     for (int l=0; l < npop; ++l)
                     {
@@ -469,16 +524,16 @@ void LBM::Streaming(LATTICE ***fluid)
                         k_nb = k - cz[l];
 
                         //---- Solid Boundary Condition ----------------------
-                        if(fluid[i_nb][j_nb][k_nb].type==TYPE_S)
+                        if(mixture[i_nb][j_nb][k_nb].type==TYPE_S)
                         {
-                            fluid[i][j][k].f[l] = fluid[i][j][k].fpc[opposite[l]];
-                            fluid[i][j][k].g[l] = fluid[i][j][k].gpc[opposite[l]];
+                            mixture[i][j][k].f[l] = mixture[i][j][k].fpc[opposite[l]];
+                            mixture[i][j][k].g[l] = mixture[i][j][k].gpc[opposite[l]];
                         }
                         //---- Inlet/Outlet Boundary Condition
-                        else if (fluid[i_nb][j_nb][k_nb].type==TYPE_E)
+                        else if (mixture[i_nb][j_nb][k_nb].type==TYPE_E)
                         {
-                            fluid[i][j][k].f[l] = fluid[i_nb][j_nb][k_nb].fpc[l];
-                            fluid[i][j][k].g[l] = fluid[i_nb][j_nb][k_nb].gpc[l];
+                            mixture[i][j][k].f[l] = mixture[i_nb][j_nb][k_nb].fpc[l];
+                            mixture[i][j][k].g[l] = mixture[i_nb][j_nb][k_nb].gpc[l];
                         }
                         else //---- Periodic Boundary Condition --------------------
                         {
@@ -492,14 +547,14 @@ void LBM::Streaming(LATTICE ***fluid)
                             if (k_nb < 1) k_nb = Nz-2;
                             else if(k_nb > Nz-2) k_nb = 1;
 
-                            fluid[i][j][k].f[l] = fluid[i_nb][j_nb][k_nb].fpc[l];*/
+                            mixture[i][j][k].f[l] = mixture[i_nb][j_nb][k_nb].fpc[l];*/
 
                             
                             i_nb = ((i_nb - 1 + (Nx-2)) % (Nx-2)) + 1;
                             j_nb = ((j_nb - 1 + (Ny-2)) % (Ny-2)) + 1;
                             k_nb = ((k_nb - 1 + (Nz-2)) % (Nz-2)) + 1;
-                            fluid[i][j][k].f[l] = fluid[i_nb][j_nb][k_nb].fpc[l];
-                            fluid[i][j][k].g[l] = fluid[i_nb][j_nb][k_nb].gpc[l];
+                            mixture[i][j][k].f[l] = mixture[i_nb][j_nb][k_nb].fpc[l];
+                            mixture[i][j][k].g[l] = mixture[i_nb][j_nb][k_nb].gpc[l];
                         }
                     }
                 }
@@ -508,41 +563,164 @@ void LBM::Streaming(LATTICE ***fluid)
     } 
 }
 
+#ifdef MULTICOMP
+void LBM::Collide_Species()
+{
+    calculate_moment();
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {    
+                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
+                {   
+                    double mass_frac[nSpecies];         
+                    double tau_ab[nSpecies][nSpecies];
+                    double D_ab[nSpecies][nSpecies];
+                    double invtau_a[nSpecies];
+                    double *du[nSpecies];
+                    double *dv[nSpecies];
+                    double *dw[nSpecies];
+                    double mmass[nSpecies]; 
+                    Eigen::MatrixXd mat_A(nSpecies, nSpecies);
+                    Eigen::VectorXd vec_b(nSpecies);
+                    Eigen::VectorXd vec_u(nSpecies);
+                    Eigen::VectorXd vec_v(nSpecies);
+                    Eigen::VectorXd vec_w(nSpecies);
+                    Eigen::VectorXd sol(nSpecies);
 
-// void LBM::Init(SPECIES*** species)
-// {
-//     #pragma omp parallel for schedule(static, 1)
-//     for(int i = 0; i < Nx ; ++i)
-//     {
-//         for(int j = 0; j < Ny; ++j)
-//         {
-//             for(int k = 0; k < Nz; ++k)
-//             {    
-//                 if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
-//                 {                
-//                     double velocity[3] = {  species[i][j][k].rhou/species[i][j][k].rho,
-//                                             species[i][j][k].rhov/species[i][j][k].rho, 
-//                                             species[i][j][k].rhow/species[i][j][k].rho};
-//                     double gas_const = GAS_CONST/mixture[i][j][k].mmass;
-//                     double cv = gas_const / (GAMMA - 1.0);
-//                     double cp = cv + gas_const;
-//                     double internal_energy = cv * fluid[i][j][k].temp;
-//                     fluid[i][j][k].p = fluid[i][j][k].rho*gas_const*fluid[i][j][k].temp;
-//                     fluid[i][j][k].rhoe = fluid[i][j][k].rho*(internal_energy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]));
-//                     double theta = gas_const*fluid[i][j][k].temp;   
+                    auto gas = mixture[i][j][k].sol->thermo();                   
+                    auto trans = mixture[i][j][k].sol->transport();
 
-//                     double corr[3] = {0, 0, 0}; 
+                    for(int a = 0; a < nSpecies; ++a) 
+                    {
+                        mass_frac[a] = species[a][i][j][k].rho / mixture[i][j][k].rho;
+                        mmass[a] = units.M(gas->molecularWeight(gas->speciesIndex(speciesName[a])));
+                    }
+                    double mix_mmass = units.M(gas->meanMolecularWeight());
+                    double theta = units.energy(gas->RT());
+                    int ld = gas->nSpecies();
+                    double d[ld * ld];
+                    trans->getBinaryDiffCoeffs(ld, d);
 
-//                     for (int l = 0; l < npop; ++l)
-//                     {
-//                         // ------------- Mass and Momentum Initialization -----------------------------
-//                         fluid[i][j][k].f[l]=calculate_feq(l, fluid[i][j][k].rho, velocity, theta, corr);
-//                     }     
-//                 }
-//             }
-//         }
-//     }
-// }
+                    for(int a = 0; a < nSpecies; ++a)
+                    {                       
+                        for(int b = a; b < nSpecies; ++b)
+                        {
+                            D_ab[a][b] = d[ld*b + a];
+                            tau_ab[a][b] = (mmass[a]*mmass[b]/(mix_mmass*theta))*D_ab[a][b];
+                        }
+                        
+                        for(int b = 0; b < nSpecies; ++b)
+                            if (a != b)
+                            {
+                                if (a < b) invtau_a[a] += mass_frac[b] / tau_ab[a][b]; 
+                                else invtau_a[a] += mass_frac[b] / tau_ab[b][a];   
+                            }
 
+                        for(int b = 0; b < nSpecies; ++b)
+                            if (a == b) mat_A(a, b) = 1 + dt_sim * invtau_a[a] / 2.0;
+                            else 
+                                if (a < b) mat_A(a, b) = - dt_sim / 2 * mass_frac[b] / tau_ab[a][b]; 
+                                else mat_A(a, b) = - dt_sim / 2 * mass_frac[b] / tau_ab[b][a]; 
 
+                        vec_u(a) = species[a][i][j][k].u - mixture[i][j][k].u;
+                        vec_v(a) = species[a][i][j][k].v - mixture[i][j][k].v;
+                        vec_w(a) = species[a][i][j][k].w - mixture[i][j][k].w;
+                    }  
+                        
+                    sol = mat_A.colPivHouseholderQr().solve(vec_u);
+                    *du = sol.data();
+                    sol = mat_A.colPivHouseholderQr().solve(vec_v);
+                    *dv = sol.data();
+                    sol = mat_A.colPivHouseholderQr().solve(vec_w);
+                    *dw = sol.data();                  
+
+                    double velocity[3] = {  mixture[i][j][k].u,
+                                            mixture[i][j][k].v, 
+                                            mixture[i][j][k].w};
+
+                    for (int l = 0; l < npop; ++l)
+                    {
+                        double feq[nSpecies];
+                        double fstr[nSpecies];
+
+                        for (int a = 0; a < nSpecies; ++a)
+                        {
+                            double velocity_spec[3] = { velocity[0] + *du[a],
+                                                        velocity[1] + *dv[a], 
+                                                        velocity[2] + *dw[a]};
+                            species[a][i][j][k].u = velocity_spec[0];
+                            species[a][i][j][k].v = velocity_spec[1];
+                            species[a][i][j][k].w = velocity_spec[2];
+                            auto gas = mixture[i][j][k].sol->thermo();
+                            double theta = units.energy_mass( gas->RT()/gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
+                            double corr[3] = {0, 0, 0};
+                            feq[a] = calculate_feq(l, species[a][i][j][k].rho, velocity, theta, corr);
+                            fstr[a] = calculate_feq(l, species[a][i][j][k].rho, velocity_spec, theta, corr);
+                        }
+
+                        for(int a = 0; a < nSpecies; ++a)
+                        {
+                            double F_a = 0.0;
+                            double beta = 0.0;
+                            for(int b = 0; b < nSpecies; ++b)
+                                if (a !=b)
+                                {
+                                    if (a < b)
+                                        F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
+                                    else 
+                                        F_a += mass_frac[a]/tau_ab[b][a]*(feq[b]-fstr[b]);
+                                }
+                            
+                            beta = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
+                            
+                            species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta-1)*F_a;
+                        }
+                    }  
+
+                }
+            }
+        }
+    }
+}
+#endif
+
+void LBM::run(int nstep, int tout)
+{
+    this->nstep = nstep;
+    this->tout = tout;
+
+    std::cout << "-- Setup Done --" << std::endl;
+
+    // initialize the distribution function 
+    Init();  
+    std::cout << "-- Initialization Done --" << std::endl;
+
+    calculate_moment();
+
+    // initialize time step & Save the macroscopic at t=0
+    int step = 0;
+    OutputVTK(step, this);
+    OutputKeEns(step, this);
+    
+    // Simulation loop
+    for (step = 1; step <= nstep; ++step)
+    {
+        Collide();   // collision step
+        // std::cout << "-- Collision Done --" << std::endl;
+        Streaming();     // streaming step & BC
+        // std::cout << "-- Streaming Done --" << std::endl;
+
+        if (step % tout == 0)
+        {
+            //std::cout << "Step : " << step << std::endl;
+            OutputKeEns(step, this);
+            //OutputVTK(step, lb); // Save the macroscopic quantity
+        }
+
+    }
+}
 

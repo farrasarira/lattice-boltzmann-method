@@ -69,6 +69,10 @@
         "thread": "cpp",
         "forward_list": "cpp",
         "hash_map": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "core": "cpp",
+        "superlusupport": "cpp",
+        "fft": "cpp",
+        "specialfunctions": "cpp"
     }
 }

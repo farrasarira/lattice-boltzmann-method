@@ -14,47 +14,14 @@
     //#define CHANNEL_FLOW_3D
     //#define CYLINDER_3D
     //#define VISCOSITY_TEST
-    #define SOD_SHOCK
+    //#define SOD_SHOCK
+    #define TERNARY_DIFFUSION
 
     // ############# Flow Parameters ##################
-    // input the flow parameters
-    #define RE 200        // Reynolds number
-    #define NU 0.025  // Kinetic viscosity
-    #define RHO0 1.0      // Density
-    #define T_HIGH 1.0    // Temperature high
-    #define cs 1.0/sqrt(3.0)    // Lattice sound speed
-    #define GAS_CONST 1.0
-    #define TREF 1./3.
-    #define PR 1.0    // Prandtl Number
-    #define GAMMA 2.0 // Cp/Cv
-    #define U_GAS_CONST 8.314   // Universal Gas Constant
-
-    // ########## Simulation Time & Output ############
-    #define NSTEP 1000   // Maximum time step, in Lattice time unit
-    #define TOUT 10      // Interval of time step to save the macroscopic quantity
-
-    // ############# Physical Quantity ################
-    #define BCXM  0.0   
-    #define BCXP  0.001
-    #define BCYM  0.0
-    #define BCYP  0.001
-
-    // ############# Lattice Parameters ###############
-    #define dx 1
-    #define dy 1
-    #define dz 1
-    #define dt_sim 1
-    #define NX 3000
-    #define NY 5
-    #define NZ 5
-       
-
-    // ################# LBM Model ####################
-    // Choose one of the following LBM Model
-    #define LBM_EXTEND      // LBM model based on entropy
-    //#define LBM_CONV            // Conventional LBM
-
-
+    // Reference Moment Value [in Lattice Unit]
+    #define VEL0 0.1    // velocity    
+    #define RHO0 1.0    // Density
+    #define TEMP0 0.3      // Temperature
 
     // _____________________________________________________________________________________________________
     // Definition For code, don't change!
@@ -63,9 +30,13 @@
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION
         #define D3Q27
         #define NDIM 3
+    #endif
+
+    #if defined TERNARY_DIFFUSION
+        #define MULTICOMP
     #endif
 
     // ############## Boundary Condition ###############
