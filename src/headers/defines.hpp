@@ -14,14 +14,14 @@
     //#define CHANNEL_FLOW_3D
     //#define CYLINDER_3D
     //#define VISCOSITY_TEST
-    //#define SOD_SHOCK
+    // #define SOD_SHOCK
     #define TERNARY_DIFFUSION
 
     // ############# Flow Parameters ##################
     // Reference Moment Value [in Lattice Unit]
     #define VEL0 0.1    // velocity    
     #define RHO0 1.0    // Density
-    #define TEMP0 0.3      // Temperature
+    #define TEMP0 0.04      // Temperature
 
     // _____________________________________________________________________________________________________
     // Definition For code, don't change!
@@ -35,7 +35,7 @@
         #define NDIM 3
     #endif
 
-    #if defined TERNARY_DIFFUSION
+    #if defined TERNARY_DIFFUSION 
         #define MULTICOMP
     #endif
 

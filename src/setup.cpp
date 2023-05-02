@@ -301,7 +301,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NZ = 5;
     double NU = 0.025;
     
-    double si_len = 5.0;    // [m]
+    double si_len = 0.1;    // [m]
     double si_u_max = 1.0;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 288.15;// [K]
@@ -336,23 +336,23 @@ void main_setup() // 2D Viscos Test --------------------------------------------
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].rho = 0.5;
-                        lb.mixture[i][j][k].temp = 0.2;
+                        lb.mixture[i][j][k].rho = units.rho(0.7);
+                        lb.mixture[i][j][k].temp = units.temp(300.0);
                     }
                     else
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].rho = 2.0;
-                        lb.mixture[i][j][k].temp = 0.025;
+                        lb.mixture[i][j][k].rho = units.rho(1.2);
+                        lb.mixture[i][j][k].temp = units.temp(300.0);
                     }                       
                 }
             }
         }
     }
 
-
+    std::cout << "units.temp : " << units.temp(300.0) << std::endl;
     lb.run(1000,10);
 }
 
@@ -360,15 +360,14 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
 void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
-    int NX = 864; 
+    int NX = 900; 
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 0.1;    // [m]
-    double si_u_max = 1.0;  // [m/s]
+    double si_len = 0.001;    // [m]
+    double si_u_max = 1000.0;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
-    double si_temp = 300;   // [K]
-    double si_press = Cantera::OneAtm; // [Pa]
+    double si_temp = 300.0;// [K]
 
     units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
@@ -389,7 +388,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     XR[gas->speciesIndex("H2")]  = 0.0;
     XR[gas->speciesIndex("AR")]  = 0.485;
     XR[gas->speciesIndex("CH4")] = 0.515;
-    
+
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
     {
@@ -409,8 +408,8 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    lb.mixture[i][j][k].temp = units.temp(si_temp);
-                    lb.mixture[i][j][k].p = units.p(si_press);
+                    lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
+                    lb.mixture[i][j][k].temp = units.temp(300.0);
                     if ((float)i/(float)Nx <= 0.5 )
                     {
                         for (int a = 0; a < nSpecies; ++a) lb.species[a][i][j][k].X = XL[gas->speciesIndex(species[a])];
@@ -425,7 +424,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     }
 
 
-    lb.run(1000,1);
+    lb.run(1000,10);
 }
 
 #endif
