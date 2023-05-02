@@ -364,7 +364,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 5.0;    // [m]
+    double si_len = 0.1;    // [m]
     double si_u_max = 1.0;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300;   // [K]
@@ -425,7 +425,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     }
 
 
-    lb.run(1000,10);
+    lb.run(1000,1);
 }
 
 #endif

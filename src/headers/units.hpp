@@ -25,7 +25,7 @@
         // the following methods convert SI units into simulation units (have to be called after set_m_kg_s(...);)
         float x(const float si_x) const { return si_x/m; } // length si_x = x*[m]
         float M(const float si_M) const { return si_M/kg; } // mass si_M = M*[kg]
-        float t(const float si_t) const { return (unsigned long)(si_t/s); } // time si_t = t*[s]
+        float t(const float si_t) const { return (si_t/s); } // time si_t = t*[s]
         float temp(const float si_temp) const {return si_temp/K;} // temperature
         float energy_mass(const float si_energy_mass) const {return si_energy_mass * (s*s)/(m*m);}
         float energy(const float si_energy) const {return si_energy * (s*s)/(kg*m*m);}
@@ -46,6 +46,7 @@
         float cp(const float si_cp) const { return si_cp*s*s*K / (m*m); }
         float R(const float si_R) const{ return si_R*s*s*K / (m*m);}  
         float p(const float si_p) const { return si_p*(m*sq(s))/kg; } // pressure 
+        float bin_diff(const float si_bin_diff) const { return si_bin_diff * s / (m*m); } // pressure 
         
         // the following methods convert simulation units into SI units (have to be called after set_m_kg_s(...);)
         float si_x(const unsigned int x) const { return (float)x*m; } // length si_x = x*[m]

@@ -7,4 +7,7 @@
 
     #include <omp.h>
 
+    extern int nThreads;
+    extern std::vector<std::shared_ptr<Cantera::Solution>> sols;
+
 #endif

@@ -2,6 +2,7 @@
 #include "output.hpp"
 #include "lbm.hpp"
 #include "cantera.hpp"
+#include "units.hpp"
 #include <stdio.h>
 
 void OutputVTK(int &nout, LBM *lbm)
@@ -56,7 +57,7 @@ void OutputVTK(int &nout, LBM *lbm)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.mixture[i][j][k].rho; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_rho(lb.mixture[i][j][k].rho); fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -66,9 +67,9 @@ void OutputVTK(int &nout, LBM *lbm)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.mixture[i][j][k].u; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.mixture[i][j][k].v; fwrite(&val32,sizeof(float),1,fp);
-				val32=(float)lb.mixture[i][j][k].w; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_u(lb.mixture[i][j][k].u); fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_u(lb.mixture[i][j][k].v); fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_u(lb.mixture[i][j][k].w); fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -90,7 +91,7 @@ void OutputVTK(int &nout, LBM *lbm)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.mixture[i][j][k].temp; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_temp(lb.mixture[i][j][k].temp); fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}
@@ -101,7 +102,7 @@ void OutputVTK(int &nout, LBM *lbm)
 	for(k=0;k<Nz;k++){
 		for(j=0;j<Ny;j++){
 			for(i=0;i<Nx;i++){
-				val32=(float)lb.mixture[i][j][k].p; fwrite(&val32,sizeof(float),1,fp);
+				val32=(float)units.si_p(lb.mixture[i][j][k].p); fwrite(&val32,sizeof(float),1,fp);
 			}
 		}
 	}

@@ -69,10 +69,6 @@
             double dQdevy = 0.0;
             double dQdevz = 0.0;
 
-            #ifdef MULTICOMP
-                std::shared_ptr<Cantera::Solution> sol; // Cantera Objects
-            #endif
-
     };
 
     class SPECIES
