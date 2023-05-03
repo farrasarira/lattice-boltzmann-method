@@ -15,7 +15,8 @@
     //#define CYLINDER_3D
     //#define VISCOSITY_TEST
     // #define SOD_SHOCK
-    #define TERNARY_DIFFUSION
+    #define SOD_SHOCK_SIUNIT
+    // #define TERNARY_DIFFUSION
 
     // ############# Flow Parameters ##################
     // Reference Moment Value [in Lattice Unit]
@@ -30,12 +31,12 @@
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT
         #define D3Q27
         #define NDIM 3
     #endif
 
-    #if defined TERNARY_DIFFUSION 
+    #if defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT
         #define MULTICOMP
     #endif
 

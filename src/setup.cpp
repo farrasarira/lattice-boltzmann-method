@@ -336,23 +336,86 @@ void main_setup() // 2D Viscos Test --------------------------------------------
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].rho = units.rho(0.7);
-                        lb.mixture[i][j][k].temp = units.temp(300.0);
+                        lb.mixture[i][j][k].rho = 0.5;
+                        lb.mixture[i][j][k].temp = 0.2;
                     }
                     else
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].rho = units.rho(1.2);
-                        lb.mixture[i][j][k].temp = units.temp(300.0);
+                        lb.mixture[i][j][k].rho = 2.0;
+                        lb.mixture[i][j][k].temp = 0.025;
                     }                       
                 }
             }
         }
     }
 
-    std::cout << "units.temp : " << units.temp(300.0) << std::endl;
+    lb.run(1000,10);
+}
+
+#elif defined SOD_SHOCK_SIUNIT
+void main_setup() // 2D Viscos Test --------------------------------------------------------
+{
+    int NX = 3000; 
+    int NY = 5; 
+    int NZ = 5;
+    
+    double si_len = 1.0;    // [m]
+    double si_u_max = 1500.0;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 300;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+     std::vector<std::string> species = { "N2" };
+    
+    LBM lb(NX, NY, NZ, species);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+                
+                if (i==0 || i==Nx-1 )
+                {
+                    lb.mixture[i][j][k].type = TYPE_S;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.species[0][i][j][k].X = 1.0;
+                    lb.mixture[i][j][k].temp = units.temp(si_temp);
+                    if ((float)i/(float)Nx <= 0.5 )
+                    {
+                        lb.mixture[i][j][k].u = 0.0;
+                        lb.mixture[i][j][k].v = 0.0;
+                        lb.mixture[i][j][k].w = 0.0;
+                        lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
+                        
+                    }
+                    else
+                    {
+                        lb.mixture[i][j][k].u = 0.0;
+                        lb.mixture[i][j][k].v = 0.0;
+                        lb.mixture[i][j][k].w = 0.0;
+                        lb.mixture[i][j][k].p = 0.8 * units.p(Cantera::OneAtm);
+                    }                       
+                }
+            }
+        }
+    }
+
     lb.run(1000,10);
 }
 

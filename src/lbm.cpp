@@ -29,14 +29,6 @@ LBM::LBM(int Nx, int Ny, int Nz, double NU)
             mixture[i][j] = new LATTICE [this->Nz];
         }
     }
-
-    int nThreads  = omp_get_max_threads();
-
-    for(int i = 0; i < nThreads; ++i)
-    {
-        auto sol = Cantera::newSolution("gri30.yaml", "gri30", "multicomponent");
-        sols.emplace_back(sol);
-    }
 }
 
 #ifdef MULTICOMP
