@@ -362,14 +362,14 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 1.0;    // [m]
-    double si_u_max = 1500.0;  // [m/s]
+    double si_len = 10.0;    // [m]
+    double si_u_max = 100.0;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300;// [K]
 
     units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-     std::vector<std::string> species = { "N2" };
+    std::vector<std::string> species = { "Ar" };
     
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
