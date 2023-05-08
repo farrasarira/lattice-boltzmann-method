@@ -15,17 +15,17 @@
     //#define CYLINDER_3D
     //#define VISCOSITY_TEST
     // #define SOD_SHOCK
-    #define SOD_SHOCK_SIUNIT
-    // #define TERNARY_DIFFUSION
+    // #define SOD_SHOCK_SIUNIT
+    #define TERNARY_DIFFUSION
+
+    // _____________________________________________________________________________________________________
+    // Definition For code, don't change!
 
     // ############# Flow Parameters ##################
     // Reference Moment Value [in Lattice Unit]
     #define VEL0 0.1    // velocity    
     #define RHO0 1.0    // Density
     #define TEMP0 0.04      // Temperature
-
-    // _____________________________________________________________________________________________________
-    // Definition For code, don't change!
 
     // ################# Velocity Set ##################
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 

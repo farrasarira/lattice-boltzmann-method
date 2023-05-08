@@ -358,7 +358,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 #elif defined SOD_SHOCK_SIUNIT
 void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
-    int NX = 3000; 
+    int NX = 900; 
     int NY = 5; 
     int NZ = 5;
     
@@ -369,7 +369,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
     units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-    std::vector<std::string> species = { "Ar" };
+    std::vector<std::string> species = { "Ar", "CH4" };
     
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
@@ -394,22 +394,23 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    lb.species[0][i][j][k].X = 1.0;
                     lb.mixture[i][j][k].temp = units.temp(si_temp);
+                    lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
                     if ((float)i/(float)Nx <= 0.5 )
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
-                        lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
-                        
+                        lb.mixture[i][j][k].w = 0.0;   
+                        lb.species[0][i][j][k].X = 0.501;
+                        lb.species[1][i][j][k].X = 0.499;                      
                     }
                     else
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.mixture[i][j][k].p = 0.8 * units.p(Cantera::OneAtm);
+                        lb.species[0][i][j][k].X = 0.499;
+                        lb.species[1][i][j][k].X = 0.501;  
                     }                       
                 }
             }
@@ -427,8 +428,8 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 0.001;    // [m]
-    double si_u_max = 1000.0;  // [m/s]
+    double si_len = 1.0;    // [m]
+    double si_u_max = 500.0;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
 

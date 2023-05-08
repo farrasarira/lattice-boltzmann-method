@@ -81,9 +81,12 @@ void LBM::calculate_moment()
     std::vector<std::vector<std::vector<double>>> dQdevx(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
     std::vector<std::vector<std::vector<double>>> dQdevy(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
     std::vector<std::vector<std::vector<double>>> dQdevz(Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz)));
+    std::vector<std::vector<std::vector<std::vector<double>>>> delYx(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
+    std::vector<std::vector<std::vector<std::vector<double>>>> delYy(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
+    std::vector<std::vector<std::vector<std::vector<double>>>> delYz(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
 
     #pragma omp parallel for schedule(static, 1)
-    for (int i = Nx-1; i >= 0; --i)
+    for (int i = 0; i < Nx; ++i)
     {
         int rank = omp_get_thread_num();
         for (int j = 0; j < Ny; ++j)
@@ -235,26 +238,38 @@ void LBM::calculate_moment()
                     if (i == 1)
                     {
                         dQdevx[i][j][k] = ( (mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u)) - (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) ) /(dx);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i+1][j][k].rho / mixture[i+1][j][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dx);
                     }
                     else
                     {
                         dQdevx[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) - (mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u)) ) /(dx);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i-1][j][k].rho / mixture[i-1][j][k].rho)) / (dx);
                     }
                     if (j == 1)
                     {
                         dQdevy[i][j][k] = ( (mixture[i][j+1][k].rho*mixture[i][j+1][k].v*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].v)) - (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) ) /(dy);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dy);
                     }
                     else
                     {
                         dQdevy[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) - (mixture[i][j-1][k].rho*mixture[i][j-1][k].v*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].v)) ) /(dy);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (dy);
                     }
                     if (k == 1)
                     {
                         dQdevz[i][j][k] = ( (mixture[i][j][k+1].rho*mixture[i][j][k+1].w*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].w)) - (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w)) ) /(dz);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dz);
                     }
                     else
                     {
                         dQdevz[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w))- (mixture[i][j][k-1].rho*mixture[i][j][k-1].w*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].w)) ) /(dz);
+                        for(int a = 0; a < nSpecies; ++a)
+                            delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (dz);
                     }
 
                 }
@@ -271,16 +286,44 @@ void LBM::calculate_moment()
             {
                 if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E)     
                 {
-                    if (i == Nx-2) mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i-1][j][k],dQdevx[i][j][k]);
-                    else mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i][j][k],dQdevx[i+1][j][k]);
-                    
-                    //if (mixture[i][j][k].dQdevx != 0.0) std::cout << "dQdev : " << mixture[i][j][k].dQdevx << " | " << i << " | " << j << " | " << k << std::endl;
+                    if (i == Nx-2) 
+                    {
+                        mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i-1][j][k], dQdevx[i][j][k]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYx = limiterVanleer(delYx[a][i-1][j][k], delYx[a][i][j][k]);
+                    }
+                    else 
+                    {
+                        mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i][j][k],dQdevx[i+1][j][k]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYx = limiterVanleer(delYx[a][i][j][k], delYx[a][i+1][j][k]);
+                    }
 
-                    if (j == Ny-2) mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j-1][k],dQdevy[i][j][k]);
-                    else mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j][k],dQdevy[i][j+1][k]);
+                    if (j == Ny-2) 
+                    {
+                        mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j-1][k],dQdevy[i][j][k]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYy = limiterVanleer(delYy[a][i][j-1][k], delYy[a][i][j][k]);
+                    }
+                    else 
+                    {
+                        mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j][k],dQdevy[i][j+1][k]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYy = limiterVanleer(delYy[a][i][j][k], delYy[a][i][j+1][k]);
+                    }
 
-                    if (k == Nz-2) mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k-1],dQdevz[i][j][k]);
-                    else mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k],dQdevz[i][j][k+1]);
+                    if (k == Nz-2) 
+                    {
+                        mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k-1],dQdevz[i][j][k]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYz = limiterVanleer(delYz[a][i][j][k-1], delYz[a][i][j][k]);
+                    }
+                    else 
+                    {
+                        mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k],dQdevz[i][j][k+1]);
+                        for(int a = 0; a < nSpecies; ++a)
+                            species[a][i][j][k].delYz = limiterVanleer(delYz[a][i][j][k], delYz[a][i][j][k+1]);
+                    }
                 }
             }
         }
@@ -534,14 +577,14 @@ void LBM::Collide()
                         q_diff[1] += omega1/(omega-omega1)  * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].rho * (species[a][i][j][k].v - mixture[i][j][k].v);
                         q_diff[2] += omega1/(omega-omega1)  * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].rho * (species[a][i][j][k].w - mixture[i][j][k].w);
                     
-                        if (i == Nx-2) q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i][j][k].rho/mixture[i][j][k].rho - species[a][i-1][j][k].rho/mixture[i-1][j][k].rho);
-                        else q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i+1][j][k].rho/mixture[i+1][j][k].rho - species[a][i][j][k].rho/mixture[i][j][k].rho);
+                        if (i == Nx-2) q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYx;
+                        else q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYx;
 
-                        if (j == Ny-2) q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i][j][k].rho/mixture[i][j][k].rho - species[a][i][j-1][k].rho/mixture[i][j-1][k].rho);
-                        else q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i][j+1][k].rho/mixture[i][j+1][k].rho - species[a][i][j][k].rho/mixture[i][j][k].rho);
+                        if (j == Ny-2) q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYy;
+                        else q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYy;
                         
-                        if (k == Nz-2) q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i][j][k].rho/mixture[i][j][k].rho - species[a][i][j][k-1].rho/mixture[i][j][k-1].rho);
-                        else q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * (species[a][i][j][k+1].rho/mixture[i][j][k+1].rho - species[a][i][j][k].rho/mixture[i][j][k].rho);
+                        if (k == Nz-2) q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYz;
+                        else q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYz;
                     }
                     #endif
 

@@ -82,7 +82,10 @@
             double w = 0.0;          // velocity in z-direction
             double X = 0.0;             // mole fraction
 
-            double Ha = 0.0;    // enthalpy
+            // Mass fraction gradient
+            double delYx = 0.0;
+            double delYy = 0.0;
+            double delYz = 0.0;
 
     };
 
