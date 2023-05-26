@@ -42,7 +42,7 @@
         float F(const float si_F) const { return si_F*sq(s)/(kg*m); } // force si_F = F*[kg*m/s^2]
         float T(const float si_T) const { return si_T*sq(s)/(kg*sq(m)); } // torque si_T = T*[kg*m^2/s^2]
         float sigma(const float si_sigma) const { return si_sigma*sq(s)/kg; } // surface tension si_sigma = sigma*[kg/s^2]
-        float thermalConductivity(const float si_lamda) const { return si_lamda*s*s*s*K / kg / m ; } // thermal conductivity
+        float thermalConductivity(const float si_lamda) const { return si_lamda*s*s*s*K / (kg*m) ; } // thermal conductivity
         float cp(const float si_cp) const { return si_cp*s*s*K / (m*m); }
         float R(const float si_R) const{ return si_R*s*s*K / (m*m);}  
         float p(const float si_p) const { return si_p*(m*sq(s))/kg; } // pressure 

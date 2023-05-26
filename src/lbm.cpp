@@ -85,7 +85,9 @@ void LBM::calculate_moment()
     std::vector<std::vector<std::vector<std::vector<double>>>> delYy(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
     std::vector<std::vector<std::vector<std::vector<double>>>> delYz(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
 
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+    #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for (int i = 0; i < Nx; ++i)
     {
         int rank = omp_get_thread_num();
@@ -193,10 +195,10 @@ void LBM::calculate_moment()
                             }
                             Y[gas->speciesIndex(speciesName[a])]  = species[a][i][j][k].rho / mixture[i][j][k].rho;
                         }
-                        // std::cout << i << " | " << Y[gas->speciesIndex(speciesName[0])] << " | " << Y[gas->speciesIndex(speciesName[1])] << " | " << Y[gas->speciesIndex(speciesName[2])] << std::endl;
+                        // std::cout << i << " | " << Y[gas->speciesIndex(speciesName[0])] << std::endl;
                         // std::cout << i << " | " << species[0][i][j][k].rho << " | " << species[1][i][j][k].rho << " | " << species[2][i][j][k].rho << std::endl;
                         gas->setMassFractions(&Y[0]);
-                        gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0/units.si_rho(mixture[i][j][k].rho));
+                        gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0/units.si_rho(mixture[i][j][k].rho),1.0e-6);
                         gas->getMoleFractions(&X[0]);
                         for(int a = 0; a < nSpecies; ++a) species[a][i][j][k].X = X[gas->speciesIndex(speciesName[a])];
                         mixture[i][j][k].temp = units.temp(gas->temperature());
@@ -218,6 +220,9 @@ void LBM::calculate_moment()
     }
 
     #pragma region calculate Qdev
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i = 0; i < Nx ; ++i)
     {
         for(int j = 0; j < Ny; ++j)
@@ -238,38 +243,52 @@ void LBM::calculate_moment()
                     if (i == 1)
                     {
                         dQdevx[i][j][k] = ( (mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u)) - (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) ) /(dx);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
                             delYx[a][i][j][k] = ((species[a][i+1][j][k].rho / mixture[i+1][j][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dx);
+                        #endif
                     }
                     else
                     {
                         dQdevx[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) - (mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u)) ) /(dx);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
                             delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i-1][j][k].rho / mixture[i-1][j][k].rho)) / (dx);
+                        #endif
                     }
+
                     if (j == 1)
                     {
                         dQdevy[i][j][k] = ( (mixture[i][j+1][k].rho*mixture[i][j+1][k].v*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].v)) - (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) ) /(dy);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            delYx[a][i][j][k] = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dy);
+                            delYy[a][i][j][k] = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dy);
+                        #endif
                     }
                     else
                     {
                         dQdevy[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) - (mixture[i][j-1][k].rho*mixture[i][j-1][k].v*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].v)) ) /(dy);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (dy);
+                            delYy[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (dy);
+                        #endif
                     }
+
                     if (k == 1)
                     {
                         dQdevz[i][j][k] = ( (mixture[i][j][k+1].rho*mixture[i][j][k+1].w*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].w)) - (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w)) ) /(dz);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            delYx[a][i][j][k] = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dz);
+                            delYz[a][i][j][k] = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dz);
+                        #endif
                     }
                     else
                     {
                         dQdevz[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w))- (mixture[i][j][k-1].rho*mixture[i][j][k-1].w*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].w)) ) /(dz);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (dz);
+                            delYz[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (dz);
+                        #endif
                     }
 
                 }
@@ -277,7 +296,9 @@ void LBM::calculate_moment()
         }
     }
 
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i = 0; i < Nx ; ++i)
     {
         for(int j = 0; j < Ny; ++j)
@@ -288,41 +309,54 @@ void LBM::calculate_moment()
                 {
                     if (i == Nx-2) 
                     {
-                        mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i-1][j][k], dQdevx[i][j][k]);
+                        mixture[i][j][k].dQdevx = limiterMinmod(dQdevx[i-1][j][k], dQdevx[i][j][k]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYx = limiterVanleer(delYx[a][i-1][j][k], delYx[a][i][j][k]);
+                            species[a][i][j][k].delYx = limiterMinmod(delYx[a][i-1][j][k], delYx[a][i][j][k]);
+                        #endif
                     }
                     else 
                     {
-                        mixture[i][j][k].dQdevx = limiterVanleer(dQdevx[i][j][k],dQdevx[i+1][j][k]);
+                        mixture[i][j][k].dQdevx = limiterMinmod(dQdevx[i][j][k],dQdevx[i+1][j][k]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYx = limiterVanleer(delYx[a][i][j][k], delYx[a][i+1][j][k]);
+                            species[a][i][j][k].delYx = limiterMinmod(delYx[a][i][j][k], delYx[a][i+1][j][k]);
+                        #endif  
                     }
+                    // std::cout<< i << " | " << species[0][i][j][k].delYx << std::endl;
 
                     if (j == Ny-2) 
                     {
-                        mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j-1][k],dQdevy[i][j][k]);
+                        mixture[i][j][k].dQdevy = limiterMinmod(dQdevy[i][j-1][k],dQdevy[i][j][k]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYy = limiterVanleer(delYy[a][i][j-1][k], delYy[a][i][j][k]);
+                            species[a][i][j][k].delYy = limiterMinmod(delYy[a][i][j-1][k], delYy[a][i][j][k]);
+                        #endif
                     }
                     else 
                     {
-                        mixture[i][j][k].dQdevy = limiterVanleer(dQdevy[i][j][k],dQdevy[i][j+1][k]);
+                        mixture[i][j][k].dQdevy = limiterMinmod(dQdevy[i][j][k],dQdevy[i][j+1][k]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYy = limiterVanleer(delYy[a][i][j][k], delYy[a][i][j+1][k]);
+                            species[a][i][j][k].delYy = limiterMinmod(delYy[a][i][j][k], delYy[a][i][j+1][k]);
+                        #endif
                     }
 
                     if (k == Nz-2) 
                     {
-                        mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k-1],dQdevz[i][j][k]);
+                        mixture[i][j][k].dQdevz = limiterMinmod(dQdevz[i][j][k-1],dQdevz[i][j][k]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYz = limiterVanleer(delYz[a][i][j][k-1], delYz[a][i][j][k]);
+                            species[a][i][j][k].delYz = limiterMinmod(delYz[a][i][j][k-1], delYz[a][i][j][k]);
+                        #endif
                     }
                     else 
                     {
-                        mixture[i][j][k].dQdevz = limiterVanleer(dQdevz[i][j][k],dQdevz[i][j][k+1]);
+                        mixture[i][j][k].dQdevz = limiterMinmod(dQdevz[i][j][k],dQdevz[i][j][k+1]);
+                        #ifdef MULTICOMP
                         for(int a = 0; a < nSpecies; ++a)
-                            species[a][i][j][k].delYz = limiterVanleer(delYz[a][i][j][k], delYz[a][i][j][k+1]);
+                            species[a][i][j][k].delYz = limiterMinmod(delYz[a][i][j][k], delYz[a][i][j][k+1]);
+                        #endif
                     }
                 }
             }
@@ -407,7 +441,9 @@ double LBM::calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R
 
 void LBM::Init()
 {
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i = 0; i < Nx ; ++i)
     {
         int rank = omp_get_thread_num();
@@ -505,7 +541,9 @@ void LBM::Collide()
         calculate_moment();
     #endif
     
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i = 0; i < Nx ; ++i)
     {
         int rank = omp_get_thread_num();
@@ -546,6 +584,8 @@ void LBM::Collide()
                                             mixture[i][j][k].w};
                     double omega1 = 2*mixture[i][j][k].p*cp*dt_sim / (mixture[i][j][k].p*cp*dt_sim + 2*conduc_coeff);
                     double omega = 2*mixture[i][j][k].p*dt_sim / (mixture[i][j][k].p*dt_sim + 2*mu);
+                    // std::cout << " omega : " << omega << std::endl;
+                    // std::cout << i << " | " << omega << " | " << omega1 << std::endl;
                     double total_enthalpy = enthalpy + 0.5 * v_sqr(velocity[0], velocity[1], velocity[2]);
                     double eq_heat_flux[3] = {  total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].u,
                                                 total_enthalpy*mixture[i][j][k].rho*mixture[i][j][k].v,
@@ -577,23 +617,17 @@ void LBM::Collide()
                         q_diff[1] += omega1/(omega-omega1)  * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].rho * (species[a][i][j][k].v - mixture[i][j][k].v);
                         q_diff[2] += omega1/(omega-omega1)  * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].rho * (species[a][i][j][k].w - mixture[i][j][k].w);
                     
-                        if (i == Nx-2) q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYx;
-                        else q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYx;
-
-                        if (j == Ny-2) q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYy;
-                        else q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYy;
-                        
-                        if (k == Nz-2) q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYz;
-                        else q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYz;
+                        q_corr[0] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYx;
+                        q_corr[1] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYy;
+                        q_corr[2] += 0.5 * (omega1-2)/(omega1-omega) * dt_sim * mixture[i][j][k].p * units.energy_mass(part_enthalpy[speciesIdx]/mmass) * species[a][i][j][k].delYz;              
                     }
                     #endif
-
-                    // std::cout << " test : " << i << " | " <<  q_corr[0] << " | " << q_corr[1] << " | " << q_corr[2]  << std::endl;
-                    
 
                     double str_heat_flux[3] ={  mixture[i][j][k].energy_flux[0] - velocity[0]*(mixture[i][j][k].p_tensor[0][0]-eq_p_tensor[0][0]) - velocity[1]*(mixture[i][j][k].p_tensor[1][0]-eq_p_tensor[1][0]) - velocity[2]*(mixture[i][j][k].p_tensor[2][0]-eq_p_tensor[2][0]) - 0.5*dt_sim*velocity[0]*mixture[i][j][k].dQdevx + q_diff[0] + q_corr[0],   //
                                                 mixture[i][j][k].energy_flux[1] - velocity[0]*(mixture[i][j][k].p_tensor[0][1]-eq_p_tensor[0][1]) - velocity[1]*(mixture[i][j][k].p_tensor[1][1]-eq_p_tensor[1][1]) - velocity[2]*(mixture[i][j][k].p_tensor[2][1]-eq_p_tensor[2][1]) - 0.5*dt_sim*velocity[1]*mixture[i][j][k].dQdevy + q_diff[1] + q_corr[1],   //
                                                 mixture[i][j][k].energy_flux[2] - velocity[0]*(mixture[i][j][k].p_tensor[0][2]-eq_p_tensor[0][2]) - velocity[1]*(mixture[i][j][k].p_tensor[1][2]-eq_p_tensor[1][2]) - velocity[2]*(mixture[i][j][k].p_tensor[2][2]-eq_p_tensor[2][2]) - 0.5*dt_sim*velocity[2]*mixture[i][j][k].dQdevz + q_diff[2] + q_corr[2]} ; //
+
+                    // std::cout << " test : " << i << " | " << q_corr[0] << " | " << q_corr[1] << " | " << q_corr[2]  << std::endl;
 
                     double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*mixture[i][j][k].dQdevx,
                                         dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*mixture[i][j][k].dQdevy,
@@ -620,7 +654,9 @@ void LBM::Collide()
 void LBM::Streaming()
 {
     int i_nb, j_nb, k_nb;
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i=0; i<Nx; ++i)
     {
         for(int j=0; j<Ny; ++j)
@@ -629,6 +665,11 @@ void LBM::Streaming()
             {
                 if(mixture[i][j][k].type==TYPE_F)
                 {
+                    // bool solid_target = false;
+                    // std::vector<double> i_wall;
+                    // std::vector<double> j_wall;
+                    // std::vector<double> k_wall;
+
                     for (int l=0; l < npop; ++l)
                     {
                         i_nb = i - cx[l];
@@ -636,12 +677,19 @@ void LBM::Streaming()
                         k_nb = k - cz[l];
 
                         //---- Solid Boundary Condition ----------------------
-                        if(mixture[i_nb][j_nb][k_nb].type==TYPE_S)
+                        if(mixture[i_nb][j_nb][k_nb].type==TYPE_S || mixture[i_nb][j_nb][k_nb].type==TYPE_T)
                         {
                             mixture[i][j][k].f[l] = mixture[i][j][k].fpc[opposite[l]];
                             mixture[i][j][k].g[l] = mixture[i][j][k].gpc[opposite[l]];
+                            // if (mixture[i_nb][j_nb][k_nb].type==TYPE_T) 
+                            // {
+                            //     solid_target = true;
+                            //     i_wall.push_back(i_nb);
+                            //     j_wall.push_back(j_nb);
+                            //     k_wall.push_back(k_nb);
+                            // }
                         }
-                        //---- Inlet/Outlet Boundary Condition
+                        //---- Inlet/Outlet Boundary Condition ---------------
                         else if (mixture[i_nb][j_nb][k_nb].type==TYPE_E)
                         {
                             mixture[i][j][k].f[l] = mixture[i_nb][j_nb][k_nb].fpc[l];
@@ -649,7 +697,7 @@ void LBM::Streaming()
                         }
                         else //---- Periodic Boundary Condition --------------------
                         {
-                            /*
+                            /* Alternative Periodic Code
                             if (i_nb < 1) i_nb = Nx-2;
                             else if(i_nb > Nx-2) i_nb = 1;
 
@@ -673,6 +721,64 @@ void LBM::Streaming()
                             #endif
                         }
                     }
+
+                    // if (solid_target == true)
+                    // {
+                    //     double rho_bb = 0.0;
+                    //     double rho_loc = 0.0;
+                    //     double rhou_loc = 0.0;
+                    //     double rhov_loc = 0.0;
+                    //     double rhow_loc = 0.0;
+                    //     double rhoe_loc = 0.0;
+                    //     double u_loc = 0.0;
+                    //     double v_loc = 0.0;
+                    //     double w_loc = 0.0;
+                    //     double vel_loc[3];
+                    //     double f_tgt[npop];
+                    //     double f_loc[npop];
+                    //     double f_TMS[npop];
+
+                    //     for (int l=0; l < npop; ++l)
+                    //         rho_bb += mixture[i][j][k].f[l];
+                            
+                    //     double vel_tgt[3] = {mixture[(int) i_wall[0]][(int) j_wall[0]][(int) k_wall[0]].u,
+                    //                          mixture[(int) i_wall[0]][(int) j_wall[0]][(int) k_wall[0]].v,
+                    //                          mixture[(int) i_wall[0]][(int) j_wall[0]][(int) k_wall[0]].w};
+                    //     double T_tgt = mixture[(int) i_wall[0]][(int) j_wall[0]][(int) k_wall[0]].temp;
+                    //     double corr[3]= {0, 0, 0};
+                    //     for (int l=0; l < npop; ++l)
+                    //     {
+                    //         f_tgt[l] = calculate_feq(l, rho_bb, vel_tgt, T_tgt, corr);
+                    //         g_tgt[l] = calculate_geq(l, );
+                    //     }
+
+                    //     for (int l=0; l < npop; ++l)
+                    //     {
+                    //         i_nb = i - cx[l];
+                    //         j_nb = j - cy[l];
+                    //         k_nb = k - cz[l];
+
+                    //         if (i_nb == mixture[i_nb][j_nb][k_nb].type==TYPE_T)
+                    //         {
+                    //             rho_loc += f_tgt[l];
+                    //             rhou_loc += f_tgt[l]*cx[l];
+                    //             rhov_loc += f_tgt[l]*cy[l];
+                    //             rhow_loc += f_tgt[l]*cz[l];
+                    //             rhoe_loc += 
+                    //         }
+                    //         else
+                    //         {
+                    //             rho_loc += mixture[i][j][k].f[l];
+                    //             rhou_loc += mixture[i][j][k].f[l]*cx[l];
+                    //             rhov_loc += mixture[i][j][k].f[l]*cy[l];
+                    //             rhow_loc += mixture[i][j][k].f[l]*cz[l];
+                    //         }
+                    //     }
+                    //     u_loc = rhou_loc / rho_loc;
+                    //     v_loc = rhov_loc / rho_loc;
+                    //     w_loc = rhow_loc / rho_loc;
+                        
+                    // }
                 }
             }
         }
@@ -683,8 +789,9 @@ void LBM::Streaming()
 void LBM::Collide_Species()
 {
     calculate_moment();
-
-    #pragma omp parallel for schedule(static, 1)
+    #ifdef PARALLEL 
+        #pragma omp parallel for //schedule(static, 1) 
+    #endif
     for(int i = 0; i < Nx ; ++i)
     {
         int rank = omp_get_thread_num();
@@ -727,47 +834,61 @@ void LBM::Collide_Species()
                     auto trans = sols[rank]->transport();
                     trans->getBinaryDiffCoeffs(ld, &d[0]);
 
+                    // ====== OLD CODE (still wrong) =====================================================================
                     for(int a = 0; a < nSpecies; ++a)
                     {                       
-                        for(int b = a+1; b < nSpecies; ++b)
+                        for(int b = 0; b < nSpecies; ++b)
                         {
+                            // get diffusion coefficient
                             D_ab[a][b] =   d[ld*gas->speciesIndex(speciesName[b]) + gas->speciesIndex(speciesName[a])] ;
                             // std::cout << "D_ab " << gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << D_ab[a][b] << std::endl;
+                            
                             tau_ab[a][b] = units.t( (mmass[a]*mmass[b]/(mix_mmass*theta)) * D_ab[a][b] );
                             // std::cout << " tau_ " <<  gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << tau_ab[a][b] << std::endl;
                         }
+                    }
                         
+                    for(int a = 0; a < nSpecies; ++a)
+                    {    
                         invtau_a[a] = 0.0;
                         for(int b = 0; b < nSpecies; ++b)
-                            if (a != b)
-                            {
-                                if (a < b) invtau_a[a] += mass_frac[b] / tau_ab[a][b]; 
-                                else invtau_a[a] += mass_frac[b] / tau_ab[b][a];   
-                            }
-                        
-                        // std::cout << "invtau_ " << gas->speciesName(gas->speciesIndex(speciesName[a])) << " : " << invtau_a[a] << std::endl;
+                        {
+                            if (a != b) invtau_a[a] += mass_frac[b] / tau_ab[a][b]; 
+                        }
+                    }
 
+                    for(int a = 0; a < nSpecies; ++a)
+                    {
                         for(int b = 0; b < nSpecies; ++b)
+                        {
                             if (a == b) mat_A(a, b) = 1.0 + dt_sim * invtau_a[a] / 2.0;
                             else 
                             {
-                                if (a < b) mat_A(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b]; 
-                                else mat_A(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[b][a]; 
+                                mat_A(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b];
                             }
+                        }
 
                         vec_u(a) = species[a][i][j][k].u - mixture[i][j][k].u;
                         vec_v(a) = species[a][i][j][k].v - mixture[i][j][k].v;
                         vec_w(a) = species[a][i][j][k].w - mixture[i][j][k].w;
                     }  
                     
-                    // std::cout << mat_A << std::endl;
+                    // std::cout << " i : " << i << " | matrix A : \n" << mat_A << "\n" << std::endl;
+                    // std::cout << "Vector u : \n" << vec_u << "\n" << std::endl;
+                    // std::cout << "Vector v : \n" << vec_v << "\n" << std::endl;
+                    // std::cout << "Vector w : \n" << vec_w << "\n" << std::endl;
+
+                    //=====================================================================================================
+
+
 
                     sol = mat_A.colPivHouseholderQr().solve(vec_u);
                     du = sol.data();
+                    // std::cout << " i : " << i << " | \n" << sol << std::endl;      
                     sol = mat_A.colPivHouseholderQr().solve(vec_v);
                     dv = sol.data();
                     sol = mat_A.colPivHouseholderQr().solve(vec_w);
-                    dw = sol.data();                
+                    dw = sol.data();          
 
                     double velocity[3] = {  mixture[i][j][k].u,
                                             mixture[i][j][k].v, 
@@ -798,14 +919,8 @@ void LBM::Collide_Species()
                             double F_a = 0.0;
                             double beta = 0.0;
                             for(int b = 0; b < nSpecies; ++b)
-                                if (a !=b)
-                                {
-                                    if (a < b)
-                                        F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
-                                    else 
-                                        F_a += mass_frac[a]/tau_ab[b][a]*(feq[b]-fstr[b]);
-                                }
-                            
+                                if (a !=b) F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
+
                             beta = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
                             
                             species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta-1)*F_a;

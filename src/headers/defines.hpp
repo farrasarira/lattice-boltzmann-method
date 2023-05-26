@@ -17,15 +17,26 @@
     // #define SOD_SHOCK
     // #define SOD_SHOCK_SIUNIT
     #define TERNARY_DIFFUSION
+    
+    // ################# Parallel ####################
+    #define PARALLEL
+
+    // ############### OUTPUT UNIT ###################
+    // #define OUTPUT_SI
+
+
+
+
 
     // _____________________________________________________________________________________________________
     // Definition For code, don't change!
 
     // ############# Flow Parameters ##################
     // Reference Moment Value [in Lattice Unit]
-    #define VEL0 0.1    // velocity    
+    #define VEL0 0.57    // velocity    
     #define RHO0 1.0    // Density
-    #define TEMP0 0.04      // Temperature
+    #define MASS0 1.0
+    #define TEMP0 0.1      // Temperature
 
     // ################# Velocity Set ##################
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 

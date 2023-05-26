@@ -8,6 +8,7 @@
 
 int main()
 {
+    omp_set_num_threads(1);
     printLogo();
     clock_t start;
     start = clock();

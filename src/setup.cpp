@@ -358,18 +358,18 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 #elif defined SOD_SHOCK_SIUNIT
 void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
-    int NX = 900; 
+    int NX = 3000; 
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 10.0;    // [m]
+    double si_len = 1.0;    // [m]
     double si_u_max = 100.0;  // [m/s]
-    double si_rho = 1.225;  // [kg/m^3]
-    double si_temp = 300;// [K]
+    double si_rho = 0.0001;  // [kg/m^3]
+    double si_temp = 500.0;// [K]
 
-    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.1, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-    std::vector<std::string> species = { "Ar", "CH4" };
+    std::vector<std::string> species = { "Ar" };
     
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
@@ -394,23 +394,23 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    lb.mixture[i][j][k].temp = units.temp(si_temp);
-                    lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
+                    lb.species[0][i][j][k].X = 1.0;
+                
                     if ((float)i/(float)Nx <= 0.5 )
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
-                        lb.mixture[i][j][k].w = 0.0;   
-                        lb.species[0][i][j][k].X = 0.501;
-                        lb.species[1][i][j][k].X = 0.499;                      
+                        lb.mixture[i][j][k].w = 0.0; 
+                        lb.mixture[i][j][k].temp = units.temp(500.0);
+                        lb.mixture[i][j][k].p = 2.0*units.p(Cantera::OneAtm);                      
                     }
                     else
                     {
                         lb.mixture[i][j][k].u = 0.0;
                         lb.mixture[i][j][k].v = 0.0;
                         lb.mixture[i][j][k].w = 0.0;
-                        lb.species[0][i][j][k].X = 0.499;
-                        lb.species[1][i][j][k].X = 0.501;  
+                        lb.mixture[i][j][k].temp = units.temp(400.0);
+                        lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);
                     }                       
                 }
             }
@@ -428,8 +428,8 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 1.0;    // [m]
-    double si_u_max = 500.0;  // [m/s]
+    double si_len = 1E-6;    // [m]
+    double si_u_max = 1.0E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
 
@@ -442,6 +442,9 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
     auto sol = Cantera::newSolution("gri30.yaml", "gri30");
     auto gas = sol->thermo();
+    // double gamma = gas->cp_mass() / gas->cv_mass();
+    // double a_sound = sqrt(gamma*Cantera::GasConstant*);
+
     std::vector<double> XL (gas->nSpecies());
     std::vector<double> XR (gas->nSpecies()); 
 
@@ -488,7 +491,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     }
 
 
-    lb.run(1000,10);
+    lb.run(10000,10);
 }
 
 #endif
