@@ -432,8 +432,8 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     double si_u_max = 1.0E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
-
-    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+    
+    
 
     std::vector<std::string> species = { "H2", "AR", "CH4" };
     
@@ -442,11 +442,8 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
     auto sol = Cantera::newSolution("gri30.yaml", "gri30");
     auto gas = sol->thermo();
-    // double gamma = gas->cp_mass() / gas->cv_mass();
-    // double a_sound = sqrt(gamma*Cantera::GasConstant*);
-
-    std::vector<double> XL (gas->nSpecies());
-    std::vector<double> XR (gas->nSpecies()); 
+    double XL [gas->nSpecies()];
+    double XR [gas->nSpecies()]; 
 
     XL[gas->speciesIndex("H2")]  = 0.491;
     XL[gas->speciesIndex("AR")]  = 0.509;
@@ -455,6 +452,12 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     XR[gas->speciesIndex("H2")]  = 0.0;
     XR[gas->speciesIndex("AR")]  = 0.485;
     XR[gas->speciesIndex("CH4")] = 0.515;
+
+    gas->setState_TRX(si_temp, si_rho, XL);
+    double gamma = gas->cp_mass() / gas->cv_mass();
+    double a_sound = sqrt(gamma * Cantera::GasConstant / gas->meanMolecularWeight() * gas->temperature());
+
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
