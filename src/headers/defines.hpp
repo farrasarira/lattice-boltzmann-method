@@ -16,13 +16,14 @@
     //#define VISCOSITY_TEST
     // #define SOD_SHOCK
     // #define SOD_SHOCK_SIUNIT
-    #define TERNARY_DIFFUSION
+    // #define TERNARY_DIFFUSION
+    #define SHEAR_LAYER_MULTICOMP
     
     // ################# Parallel ####################
     #define PARALLEL
 
     // ############### OUTPUT UNIT ###################
-    // #define OUTPUT_SI
+    #define OUTPUT_SI
 
 
 
@@ -42,12 +43,12 @@
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP
         #define D3Q27
         #define NDIM 3
     #endif
 
-    #if defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT
+    #if defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP
         #define MULTICOMP
     #endif
 

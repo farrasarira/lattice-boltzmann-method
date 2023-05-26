@@ -9,5 +9,6 @@
 
     extern int nThreads;
     extern std::vector<std::shared_ptr<Cantera::Solution>> sols;
+    extern std::shared_ptr<Cantera::Solution> sol;
 
 #endif

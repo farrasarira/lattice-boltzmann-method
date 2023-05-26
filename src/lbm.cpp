@@ -66,7 +66,9 @@ LBM::LBM(int Nx, int Ny, int Nz, std::vector<std::string> species)
         }
     }
 
-    int nThreads  = omp_get_max_threads();
+
+    omp_set_num_threads(1);
+    int nThreads = omp_get_max_threads();
 
     for(int i = 0; i < nThreads; ++i)
     {
@@ -86,7 +88,7 @@ void LBM::calculate_moment()
     std::vector<std::vector<std::vector<std::vector<double>>>> delYz(nSpecies, std::vector<std::vector<std::vector<double>>> (Nx, std::vector<std::vector<double>>(Ny, std::vector<double>(Nz))));
 
     #ifdef PARALLEL 
-    #pragma omp parallel for //schedule(static, 1) 
+    #pragma omp parallel for schedule(static, 1) 
     #endif
     for (int i = 0; i < Nx; ++i)
     {
@@ -221,7 +223,7 @@ void LBM::calculate_moment()
 
     #pragma region calculate Qdev
     #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i)
     {
@@ -297,7 +299,7 @@ void LBM::calculate_moment()
     }
 
     #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i)
     {
@@ -442,11 +444,10 @@ double LBM::calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R
 void LBM::Init()
 {
     #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i)
     {
-        int rank = omp_get_thread_num();
         for(int j = 0; j < Ny; ++j)
         {
             for(int k = 0; k < Nz; ++k)
@@ -465,6 +466,7 @@ void LBM::Init()
                         double theta = gas_const*mixture[i][j][k].temp;   
                         double enthalpy = cp * mixture[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
                     #else
+                        int rank = omp_get_thread_num();
                         auto gas = sols[rank]->thermo();
                         std::vector <double> X (gas->nSpecies());
                         for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;
@@ -541,12 +543,11 @@ void LBM::Collide()
         calculate_moment();
     #endif
     
-    #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+     #ifdef PARALLEL 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i)
     {
-        int rank = omp_get_thread_num();
         for(int j = 0; j < Ny; ++j)
         {
             for(int k = 0; k < Nz; ++k)
@@ -562,6 +563,7 @@ void LBM::Collide()
                         double enthalpy = cp * mixture[i][j][k].temp; // H = Cp * T = (Cv + 1) * T
                     
                     #else
+                        int rank = omp_get_thread_num();
                         auto gas = sols[rank]->thermo();
                         std::vector <double> X (gas->nSpecies());
                         for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;
@@ -655,7 +657,7 @@ void LBM::Streaming()
 {
     int i_nb, j_nb, k_nb;
     #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i=0; i<Nx; ++i)
     {
@@ -790,11 +792,10 @@ void LBM::Collide_Species()
 {
     calculate_moment();
     #ifdef PARALLEL 
-        #pragma omp parallel for //schedule(static, 1) 
+        #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i)
     {
-        int rank = omp_get_thread_num();
         for(int j = 0; j < Ny; ++j)
         {
             for(int k = 0; k < Nz; ++k)
@@ -816,6 +817,7 @@ void LBM::Collide_Species()
                     Eigen::VectorXd vec_w(nSpecies);
                     Eigen::VectorXd sol(nSpecies);
 
+                    int rank = omp_get_thread_num();
                     auto gas = sols[rank]->thermo();               
                     std::vector<double> X (gas->nSpecies());
                     for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;

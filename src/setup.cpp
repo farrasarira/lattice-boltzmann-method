@@ -362,12 +362,12 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 1.0;    // [m]
-    double si_u_max = 100.0;  // [m/s]
-    double si_rho = 0.0001;  // [kg/m^3]
+    double si_len = 0.01;    // [m]
+    double si_u_max = 1.0E+3;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 500.0;// [K]
 
-    units.set_m_kg_s(NX, VEL0, RHO0, 0.1, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.3, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
     std::vector<std::string> species = { "Ar" };
     
@@ -428,12 +428,13 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     int NY = 5; 
     int NZ = 5;
     
-    double si_len = 1.0;    // [m]
+    double si_len = 1E-5;    // [m]
     double si_u_max = 1.0E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
     
-    
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
     std::vector<std::string> species = { "H2", "AR", "CH4" };
     
     LBM lb(NX, NY, NZ, species);
@@ -441,8 +442,12 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
     auto sol = Cantera::newSolution("gri30.yaml", "gri30");
     auto gas = sol->thermo();
-    double XL [gas->nSpecies()];
-    double XR [gas->nSpecies()]; 
+    
+    // double gamma = gas->cp_mass() / gas->cv_mass();
+    // double a_sound = sqrt(gamma*Cantera::GasConstant*);
+
+    std::vector<double> XL (gas->nSpecies());
+    std::vector<double> XR (gas->nSpecies()); 
 
     XL[gas->speciesIndex("H2")]  = 0.491;
     XL[gas->speciesIndex("AR")]  = 0.509;
@@ -451,13 +456,6 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     XR[gas->speciesIndex("H2")]  = 0.0;
     XR[gas->speciesIndex("AR")]  = 0.485;
     XR[gas->speciesIndex("CH4")] = 0.515;
-
-    gas->setState_TRX(si_temp, si_rho, XL);
-    double gamma = gas->cp_mass() / gas->cv_mass();
-    double a_sound = sqrt(gamma * Cantera::GasConstant / gas->meanMolecularWeight() * gas->temperature());
-    std::cout << "Speed of Sound : " << a_sound << std::endl;
-
-    units.set_m_kg_s(NX, sqrt(1.0), RHO0, TEMP0, si_len, a_sound, si_rho, si_temp); // setting the conversion factor 
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
@@ -496,6 +494,78 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 
     lb.run(10000,10);
 }
+
+
+#elif defined SHEAR_LAYER_MULTICOMP
+void main_setup() 
+{
+    int NX = 800; 
+    int NY = 800; 
+    int NZ = 200;
+    
+    double si_len = 0.01;    // [m]
+    double si_u_max = 1.0E+3;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 500.0;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.3, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    std::vector<std::string> species = { "O2", "N2" };
+
+    LBM lb(NX, NY, NZ, species);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+    double u_x = 0.05;
+
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( i==0 || i==Nx-1 || j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.mixture[i][j][k].temp = units.temp(300.0);
+                    lb.mixture[i][j][k].p = 1.0*units.p(Cantera::OneAtm); 
+                
+                    if ((float)j/(float)Ny < 0.25 )
+                    {
+                        lb.mixture[i][j][k].u = u_x;
+                        lb.mixture[i][j][k].v = 2*u_x*0.01*sin(2*M_PI*i/Nx);
+                        lb.mixture[i][j][k].w = 2*u_x*0.01*sin(2*M_PI*k/Nz); 
+                        lb.species[0][i][j][k].X = 0.9;   
+                        lb.species[1][i][j][k].X = 0.1;
+                    }
+                    else if ((float)j/(float)Ny >= 0.25 && (float)j/(float)Ny < 0.75)
+                    {
+                        lb.mixture[i][j][k].u = -u_x;
+                        lb.mixture[i][j][k].v = 2*u_x*0.01*sin(2*M_PI*i/Nx);
+                        lb.mixture[i][j][k].w = 2*u_x*0.01*sin(2*M_PI*k/Nz); 
+                        lb.species[0][i][j][k].X = 0.1;   
+                        lb.species[1][i][j][k].X = 0.9;
+                    }
+                    else
+                    {
+                        lb.mixture[i][j][k].u = u_x;
+                        lb.mixture[i][j][k].v = 2*u_x*0.01*sin(2*M_PI*i/Nx);
+                        lb.mixture[i][j][k].w = 2*u_x*0.01*sin(2*M_PI*k/Nz);
+                        lb.species[0][i][j][k].X = 0.9;   
+                        lb.species[1][i][j][k].X = 0.1;
+                    }                       
+                }
+            }
+        }
+    }
+
+    lb.run(1000,10);
+}
+
 
 #endif
 
