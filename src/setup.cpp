@@ -457,7 +457,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     double a_sound = sqrt(gamma * Cantera::GasConstant / gas->meanMolecularWeight() * gas->temperature());
     std::cout << "Speed of Sound : " << a_sound << std::endl;
 
-    units.set_m_kg_s(NX, sqrt(TEMP0), RHO0, TEMP0, si_len, a_sound, si_rho, si_temp); // setting the conversion factor 
+    units.set_m_kg_s(NX, sqrt(1.0), RHO0, TEMP0, si_len, a_sound, si_rho, si_temp); // setting the conversion factor 
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
