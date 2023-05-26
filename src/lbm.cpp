@@ -67,13 +67,13 @@ LBM::LBM(int Nx, int Ny, int Nz, std::vector<std::string> species)
     }
 
 
-    omp_set_num_threads(1);
+    omp_set_num_threads(8);
     int nThreads = omp_get_max_threads();
 
     for(int i = 0; i < nThreads; ++i)
     {
         auto sol = Cantera::newSolution("gri30.yaml", "gri30", "multicomponent");
-        sols.emplace_back(sol);
+        sols.push_back(sol);
     }
 }
 #endif

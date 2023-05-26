@@ -15,9 +15,9 @@
     //#define CYLINDER_3D
     //#define VISCOSITY_TEST
     // #define SOD_SHOCK
-    // #define SOD_SHOCK_SIUNIT
+    #define SOD_SHOCK_SIUNIT
     // #define TERNARY_DIFFUSION
-    #define SHEAR_LAYER_MULTICOMP
+    // #define SHEAR_LAYER_MULTICOMP
     
     // ################# Parallel ####################
     #define PARALLEL

@@ -499,9 +499,9 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 #elif defined SHEAR_LAYER_MULTICOMP
 void main_setup() 
 {
-    int NX = 800; 
-    int NY = 800; 
-    int NZ = 200;
+    int NX = 300; 
+    int NY = 100; 
+    int NZ = 100;
     
     double si_len = 0.01;    // [m]
     double si_u_max = 1.0E+3;  // [m/s]
