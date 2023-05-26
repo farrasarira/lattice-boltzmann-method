@@ -456,6 +456,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
     gas->setState_TRX(si_temp, si_rho, XL);
     double gamma = gas->cp_mass() / gas->cv_mass();
     double a_sound = sqrt(gamma * Cantera::GasConstant / gas->meanMolecularWeight() * gas->temperature());
+    std::cout << "Speed of Sound : " << a_sound << std::endl;
 
     units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
