@@ -14,6 +14,8 @@
             kg = si_rho/rho*cb((double)m); // density si_rho = rho*[kg/m^3]
             s = m * u/si_u; // velocity si_u = u*[m/s]
             K = si_temp/temp; // temperature
+
+            std::cout << "dt* : " << s << std::endl;
         }
         void set_m_kg_s(const float m, const float kg, const float s, const float K) { // do unit conversion manually
             this->m = m;

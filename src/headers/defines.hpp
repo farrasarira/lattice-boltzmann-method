@@ -36,7 +36,7 @@
     #define VEL0 0.57    // velocity    
     #define RHO0 1.0    // Density
     #define MASS0 1.0
-    #define TEMP0 0.1      // Temperature
+    #define TEMP0 0.3      // Temperature
 
     // ################# Velocity Set ##################
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
