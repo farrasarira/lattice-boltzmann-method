@@ -822,6 +822,30 @@ void LBM::Collide_Species()
                     std::vector<double> X (gas->nSpecies());
                     for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;
                     gas->setState_TRX(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho), &X[0]);
+
+                    double w_dot[gas->nSpecies()];   // mole density rate [kmol/m3/s]
+                    double rho_dot[gas->nSpecies()];    // mass denisty rate [kg/m3/s]
+                    auto kinetics = sols[rank]->kinetics();
+                    kinetics->getNetProductionRates(w_dot); 
+                    for (int a = 0; a < gas->nSpecies(); ++a)
+                    {
+                        if (w_dot[a] != 0)
+                        {
+                            if(X[a] == 0)
+                            {
+                                speciesName.push_back(gas->speciesName(a));
+                                nSpecies++;
+                                
+                            }
+                            else
+                            {
+                                
+                            }
+                        }
+                    }
+
+
+
                     
                     for(int a = 0; a < nSpecies; ++a) 
                     {
