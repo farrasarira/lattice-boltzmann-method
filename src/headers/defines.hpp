@@ -18,6 +18,7 @@
     #define SOD_SHOCK_SIUNIT
     // #define TERNARY_DIFFUSION
     // #define SHEAR_LAYER_MULTICOMP
+    // #define PERFECTLY_STIRRED_REACTOR_3D
     
     // ################# Parallel ####################
     #define PARALLEL
@@ -43,12 +44,12 @@
     #if defined CYLINDER_2D || defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP || defined PERFECTLY_STIRRED_REACTOR_3D
         #define D3Q27
         #define NDIM 3
     #endif
 
-    #if defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP
+    #if defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP || defined PERFECTLY_STIRRED_REACTOR_3D
         #define MULTICOMP
     #endif
 

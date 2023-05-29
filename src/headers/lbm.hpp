@@ -7,7 +7,8 @@
     #include <string>
     #include <memory>
     #include "defines.hpp"
-    #include "Eigen"
+    #include <eigen3/Eigen/Sparse>
+    #include <eigen3/Eigen/QR>
     #include "output.hpp"
     #include "cantera.hpp"
  
@@ -80,7 +81,9 @@
             double u = 0.0;          // velocity in x-direction
             double v = 0.0;          // velocity in y-direction
             double w = 0.0;          // velocity in z-direction
-            double X = 0.0;             // mole fraction
+            double X = 0.0;          // mole fraction
+
+            double rho_dot = 0.0;   // rate of formation/destruction during chemical reaction.
 
             // Mass fraction gradient
             double delYx = 0.0;

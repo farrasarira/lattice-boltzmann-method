@@ -358,6 +358,7 @@ void main_setup() // 2D Viscos Test --------------------------------------------
 #elif defined SOD_SHOCK_SIUNIT
 void main_setup() // 2D Viscos Test --------------------------------------------------------
 {
+    std::cout << "-------------------- SOD SCHOCK SIUNIT ---------------------" << std::endl;
     int NX = 3000; 
     int NY = 5; 
     int NZ = 5;
@@ -566,6 +567,56 @@ void main_setup()
     lb.run(1000,10);
 }
 
+
+#elif defined PERFECTLY_STIRRED_REACTOR_3D
+void main_setup() 
+{
+    int NX = 4; 
+    int NY = 4; 
+    int NZ = 4;
+    
+    double si_len = 0.01;    // [m]
+    double si_u_max = 1.0E+3;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 1400.0;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.3, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    std::vector<std::string> species = { "H2", "H2O" };
+
+    LBM lb(NX, NY, NZ, species);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( i==0 || i==Nx-1 || j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.mixture[i][j][k].temp = units.temp(si_temp);
+                    lb.mixture[i][j][k].p = 1.0*units.p(Cantera::OneAtm); 
+                
+                    lb.mixture[i][j][k].u = 0.0;
+                    lb.mixture[i][j][k].v = 0.0;
+                    lb.mixture[i][j][k].w = 0.0; 
+                    lb.species[0][i][j][k].X = 2./3.;     // H2 Mole Fraction
+                    lb.species[1][i][j][k].X = 1./3.;     // H2O Mole Fraction
+        
+                }
+            }
+        }
+    }
+
+    lb.run(1000,10);
+}
 
 #endif
 

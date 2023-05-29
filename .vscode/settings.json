@@ -73,6 +73,8 @@
         "core": "cpp",
         "superlusupport": "cpp",
         "fft": "cpp",
-        "specialfunctions": "cpp"
+        "specialfunctions": "cpp",
+        "eigen": "cpp",
+        "sparse": "cpp"
     }
 }

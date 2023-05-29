@@ -5,11 +5,11 @@
     #include "cantera/thermo.h"
     #include "cantera/transport.h"
     #include "cantera/kinetics.h"
+ 
 
     #include <omp.h>
 
     extern int nThreads;
     extern std::vector<std::shared_ptr<Cantera::Solution>> sols;
     extern std::shared_ptr<Cantera::Solution> sol;
-
 #endif
