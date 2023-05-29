@@ -7,7 +7,8 @@
     #include <string>
     #include <memory>
     #include "defines.hpp"
-    #include "Eigen"
+    #include <eigen3/Eigen/Sparse>
+    #include <eigen3/Eigen/QR>
     #include "output.hpp"
     #include "cantera.hpp"
  
@@ -64,6 +65,7 @@
             double rhoe;                // density * total energy (E)
             double energy_flux[3] = {0., 0., 0.}; // heat flux
 
+
             // Third-order Moment Deviation
             double dQdevx = 0.0;
             double dQdevy = 0.0;
@@ -81,6 +83,8 @@
             double v = 0.0;          // velocity in y-direction
             double w = 0.0;          // velocity in z-direction
             double X = 0.0;             // mole fraction
+
+            double rho_dot = 0.0;
 
             // Mass fraction gradient
             double delYx = 0.0;

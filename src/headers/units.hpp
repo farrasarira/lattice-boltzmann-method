@@ -35,6 +35,7 @@
         float omega(const float si_omega) const { return si_omega*s; } // frequency si_omega = omega/[s]
         float u(const float si_u) const { return si_u*s/m; } // velocity si_u = u*[m/s]
         float rho(const float si_rho) const { return si_rho*cb(m)/kg; } // density si_rho = rho*[kg/m^3]
+        float rho_dot(const float si_rho) const { return si_rho*cb(m)*s/kg; } // density si_rho_dot = rho_dot*[kg/m^3/s]
         float Q(const float si_Q) const { return si_Q*s/cb(m); } // flow rate si_Q = Q*[m^3/s]
         float nu(const float si_nu) const { return si_nu*s/sq(m); } // kinematic shear viscosity si_nu = nu*[m^2/s]
         float mu(const float si_mu) const { return si_mu*s*m/kg; } // dynamic shear viscosity si_mu = mu*[kg/(m*s)]
