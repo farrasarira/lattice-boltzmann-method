@@ -683,6 +683,10 @@ void LBM::Streaming()
                         {
                             mixture[i][j][k].f[l] = mixture[i][j][k].fpc[opposite[l]];
                             mixture[i][j][k].g[l] = mixture[i][j][k].gpc[opposite[l]];
+                            #ifdef MULTICOMP
+                            for(int a = 0; a < nSpecies; ++a)
+                                species[a][i][j][k].f[l] = species[a][i][j][k].fpc[opposite[l]];
+                            #endif
                             // if (mixture[i_nb][j_nb][k_nb].type==TYPE_T) 
                             // {
                             //     solid_target = true;
@@ -822,46 +826,6 @@ void LBM::Collide_Species()
                     std::vector<double> X (gas->nSpecies());
                     for(int a = 0; a < nSpecies; ++a) X[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].X;
                     gas->setState_TRX(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho), &X[0]);
-
-                    double w_dot[gas->nSpecies()];   // mole density rate [kmol/m3/s]
-                    auto kinetics = sols[rank]->kinetics();
-                    kinetics->getNetProductionRates(w_dot); 
-                    for (int a = 0; a < (int) gas->nSpecies(); ++a)
-                    {
-                        if (w_dot[a] != 0)  // Check, rate != 0.
-                        {
-                            double idx_species;
-                            bool new_species = true;
-                            for (int b = 0; b < nSpecies; ++b)
-                                if(gas->speciesName(a) == speciesName[b])
-                                {
-                                    new_species = false;
-                                    idx_species = b;
-                                }
-                            
-                            if (new_species) // adding product to the LBM variables
-                            {
-                                speciesName.push_back(gas->speciesName(a));
-                                nSpecies++;
-                                idx_species = nSpecies - 1;
-
-                                // allocate memory for new species
-                                this->species.resize(nSpecies);
-                                this->species[idx_species] = new SPECIES **[this->Nx];
-                                for (int i = 0; i < this->Nx; ++i)
-                                {
-                                    this->species[idx_species][i] = new SPECIES *[this->Ny];
-                                    for (int j = 0; j < this->Ny; ++j)
-                                    {
-                                        this->species[idx_species][i][j] = new SPECIES [this->Nz];
-                                    }
-                                }                            
-                            }
-                            species[idx_species][i][j][k].rho_dot = units.rho_dot(w_dot[a] * gas->molecularWeight(a));                          
-                        }
-                    }
-
-
                     
                     for(int a = 0; a < nSpecies; ++a) 
                     {
