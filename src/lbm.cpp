@@ -20,13 +20,13 @@ LBM::LBM(int Nx, int Ny, int Nz, double nu)
     this->nu = nu;
 
     // allocate memory for lattice
-    mixture = new LATTICE **[this->Nx];
+    mixture = new MIXTURE **[this->Nx];
     for (int i = 0; i < this->Nx; ++i)
     {
-        mixture[i] = new LATTICE *[this->Ny];
+        mixture[i] = new MIXTURE *[this->Ny];
         for (int j = 0; j < this->Ny; ++j)
         {
-            mixture[i][j] = new LATTICE [this->Nz];
+            mixture[i][j] = new MIXTURE [this->Nz];
         }
     }
 }
@@ -42,13 +42,13 @@ LBM::LBM(int Nx, int Ny, int Nz, std::vector<std::string> species)
     this->nSpecies = species.size();
 
     // allocate memory for mixture
-    mixture = new LATTICE **[this->Nx];
+    mixture = new MIXTURE **[this->Nx];
     for (int i = 0; i < this->Nx; ++i)
     {
-        mixture[i] = new LATTICE *[this->Ny];
+        mixture[i] = new MIXTURE *[this->Ny];
         for (int j = 0; j < this->Ny; ++j)
         {
-            mixture[i][j] = new LATTICE [this->Nz];
+            mixture[i][j] = new MIXTURE [this->Nz];
         }
     }
 
@@ -172,7 +172,7 @@ void LBM::calculate_moment()
                         auto gas = sols[rank]->thermo();
                         std::vector<double> Y (gas->nSpecies());
                         std::vector<double> X (gas->nSpecies());
-
+                        
                         for(size_t a = 0; a < nSpecies; ++a)
                         {
                         
@@ -205,7 +205,8 @@ void LBM::calculate_moment()
                                 species[a][i][j][k].w = 0.0;
                             }
                             Y[gas->speciesIndex(speciesName[a])]  = species[a][i][j][k].rho / mixture[i][j][k].rho;
-                            // // species[a][i][j][k].rho_dot = 0.0;
+                            species[a][i][j][k].rho_dot = 0.0;
+                            // std::cout <<  speciesName[a] << " | " << species[a][i][j][k].rho << std::endl;
                         
                         #elif defined FD
                             species[a][i][j][k].rho = species[a][i][j][k].rho_n; 
@@ -231,7 +232,6 @@ void LBM::calculate_moment()
         }
     }
 
-    #pragma region calculate Qdev
     #ifdef PARALLEL 
         #pragma omp parallel for schedule(static, 1) 
     #endif
@@ -385,7 +385,6 @@ void LBM::calculate_moment()
             }
         }
     }
-    #pragma endregion
 }
 
 double LBM::calculate_feq(int l, double rho, double velocity[], double theta, double corr[])
@@ -1074,6 +1073,8 @@ void LBM::Streaming()
                         double tau_ab[nSpecies][nSpecies];
                         double D_ab[nSpecies][nSpecies];
                         double invtau_a[nSpecies];
+                        double lambda[nSpecies];
+                        double beta[nSpecies];
                         double mmass[nSpecies]; 
                         Eigen::SparseMatrix<double> matrix_A(nSpecies, nSpecies);
                         Eigen::VectorXd vector_u(nSpecies);
@@ -1089,50 +1090,13 @@ void LBM::Streaming()
                         for(size_t a = 0; a < nSpecies; ++a) Y[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].rho / mixture[i][j][k].rho;
                         gas->setMassFractions(&Y[0]);
                         gas->setState_TD(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho));
-
-                        // double w_dot[gas->nSpecies()];   // mole density rate [kmol/m3/s]
-                        // // auto kinetics = sols[rank]->kinetics();
-                        // // kinetics->getNetProductionRates(w_dot); 
-                        // for (int a = 0; a < (int) gas->nSpecies(); ++a)
-                        // {
-                        //     if (w_dot[a] != 0)  // Check, rate != 0.
-                        //     {
-                        //         double idx_species;
-                        //         bool new_species = true;
-                        //         for (int b = 0; b < nSpecies; ++b)
-                        //             if(gas->speciesName(a) == speciesName[b])
-                        //             {
-                        //                 new_species = false;
-                        //                 idx_species = b;
-                        //             }
-                                
-                        //         if (new_species) // adding product to the LBM variables
-                        //         {
-                        //             speciesName.push_back(gas->speciesName(a));
-                        //             nSpecies++;
-                        //             idx_species = nSpecies - 1;
-
-                        //             // allocate memory for new species
-                        //             this->species.resize(nSpecies);
-                        //             this->species[idx_species] = new SPECIES **[this->Nx];
-                        //             for (int i = 0; i < this->Nx; ++i)
-                        //             {
-                        //                 this->species[idx_species][i] = new SPECIES *[this->Ny];
-                        //                 for (int j = 0; j < this->Ny; ++j)
-                        //                 {
-                        //                     this->species[idx_species][i][j] = new SPECIES [this->Nz];
-                        //                 }
-                        //             }                            
-                        //         }
-                        //         species[idx_species][i][j][k].rho_dot = units.rho_dot(w_dot[a] * gas->molecularWeight(a));                          
-                        //     }
-                        // }
                         
                         for(size_t a = 0; a < nSpecies; ++a) 
                         {
                             mass_frac[a] = species[a][i][j][k].rho / mixture[i][j][k].rho;
                             mmass[a] = gas->molecularWeight(gas->speciesIndex(speciesName[a]));
                         }
+
                         double mix_mmass = gas->meanMolecularWeight();
                         double theta = gas->RT(); // universal_gas_const * temp
 
@@ -1162,80 +1126,152 @@ void LBM::Streaming()
                                 invtau_a[a] += mass_frac[b] / tau_ab[a][b];  
                             }
                         }
-                        
-                        for(size_t a = 0; a < nSpecies; ++a)
+
+                        if(diffModel == 0)  // Stefan-Maxwell Diffusion Model
                         {
-                            for(size_t b = 0; b < nSpecies; ++b)
+                            for(size_t a = 0; a < nSpecies; ++a)
                             {
-                                if (a == b) matrix_A.insert(a, b) = 1.0 + dt_sim * invtau_a[a] / 2.0 - dt_sim/2.0*mass_frac[a]/tau_ab[a][b];
-                                else 
+                                for(size_t b = 0; b < nSpecies; ++b)
                                 {
-                                    matrix_A.insert(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b];
+                                    if (a == b) matrix_A.insert(a, b) = 1.0 + dt_sim * invtau_a[a] / 2.0 - dt_sim/2.0*mass_frac[a]/tau_ab[a][b];
+                                    else 
+                                    {
+                                        matrix_A.insert(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b];
+                                    }
+                                }
+
+                                vector_u(a) = species[a][i][j][k].u - mixture[i][j][k].u;
+                                vector_v(a) = species[a][i][j][k].v - mixture[i][j][k].v;
+                                vector_w(a) = species[a][i][j][k].w - mixture[i][j][k].w;
+
+                                beta[a] = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
+                            }  
+                            
+                            Eigen::SparseLU<Eigen::SparseMatrix<double> > solver;
+                            solver.analyzePattern(matrix_A);
+                            solver.factorize(matrix_A);                
+                            solver.compute(matrix_A);
+
+                            du = solver.solve(vector_u);
+                            dv = solver.solve(vector_v);
+                            dw = solver.solve(vector_w);
+
+                            for(size_t a = 0; a < nSpecies; ++a)
+                            {
+                                species[a][i][j][k].Vdiff_x = du[a];
+                                species[a][i][j][k].Vdiff_y = dv[a];
+                                species[a][i][j][k].Vdiff_z = dw[a];
+                            }
+                        }
+                        else    // Mixture-averaged Diffusion Model
+                        {
+                            double denom = 0.0;
+                            for (size_t b = 0; b < nSpecies; ++b)
+                                denom += mass_frac[b] * invtau_a[b];
+
+                            for (size_t a = 0; a < nSpecies; ++a)
+                            {                                
+                                lambda[a] = mass_frac[a] * invtau_a[a] / denom;
+                                beta[a] = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
+                            }
+
+                            double betalamda = {0.0};
+                            double betaYu[nSpecies][ndim] = {0.0};
+                            for (size_t a = 0; a < nSpecies; ++a)                              
+                            {
+                                if (mass_frac[a] == 0.0) continue;
+
+                                betalamda += beta[a] * lambda[a];
+                                for (size_t b = 0; b < nSpecies; ++b)
+                                {
+                                    betaYu[a][0] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].u - mixture[i][j][k].u);
+                                    betaYu[a][1] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].v - mixture[i][j][k].v);
+                                    betaYu[a][2] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].w - mixture[i][j][k].w);
                                 }
                             }
 
-                            vector_u(a) = species[a][i][j][k].u - mixture[i][j][k].u;
-                            vector_v(a) = species[a][i][j][k].v - mixture[i][j][k].v;
-                            vector_w(a) = species[a][i][j][k].w - mixture[i][j][k].w;
-                        }  
-                        
-                        // Eigen::SparseLU<Eigen::SparseMatrix<double> , Eigen::COLAMDOrdering<int> > solver;
-                        Eigen::SparseLU<Eigen::SparseMatrix<double> > solver;
-                        solver.analyzePattern(matrix_A);
-                        solver.factorize(matrix_A);                
-                        solver.compute(matrix_A);
-
-                        du = solver.solve(vector_u);
-                        dv = solver.solve(vector_v);
-                        dw = solver.solve(vector_w);
+                            for (size_t a = 0; a < nSpecies; ++a)
+                            {
+                                species[a][i][j][k].Vdiff_x = (1.0 - beta[a]) * (species[a][i][j][k].u - mixture[i][j][k].u) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][0] ;
+                                species[a][i][j][k].Vdiff_y = (1.0 - beta[a]) * (species[a][i][j][k].v - mixture[i][j][k].v) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][1] ;
+                                species[a][i][j][k].Vdiff_z = (1.0 - beta[a]) * (species[a][i][j][k].w - mixture[i][j][k].w) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][2] ;
+                            }
+                        }
 
                         double velocity[3] = {  mixture[i][j][k].u,
                                                 mixture[i][j][k].v, 
                                                 mixture[i][j][k].w};
 
+                        std::vector <double> w_dot(gas->nSpecies());    // mole density rate [kmol/m3/s]
+                        auto kinetics = sols[rank]->kinetics();
+                        kinetics->getNetProductionRates(&w_dot[0]); 
+                        for (int a = 0; a < (int) gas->nSpecies(); ++a)
+                        {                            
+                            if (w_dot[a] == 0.0)  // Check, rate == 0.
+                                continue;
+
+                            double idx_species;
+                            bool new_species = true;
+                            for (size_t b = 0; b < nSpecies; ++b)
+                                if(gas->speciesName(a) == speciesName[b])
+                                {
+                                    new_species = false;
+                                    idx_species = b;
+                                }
+                            
+                            if (new_species) // adding product to the LBM variables
+                            {
+                                speciesName.push_back(gas->speciesName(a));
+                                nSpecies++;
+                                idx_species = nSpecies - 1;
+
+                                // allocate memory for new species
+                                this->species.resize(nSpecies);
+                                this->species[idx_species] = new SPECIES **[this->Nx];
+                                for (int i = 0; i < this->Nx; ++i)
+                                {
+                                    this->species[idx_species][i] = new SPECIES *[this->Ny];
+                                    for (int j = 0; j < this->Ny; ++j)
+                                    {
+                                        this->species[idx_species][i][j] = new SPECIES [this->Nz];
+                                    }
+                                }                            
+                            }
+                            species[idx_species][i][j][k].rho_dot = units.rho_dot(w_dot[a] * gas->molecularWeight(a)); 
+                        }
+
                         for (int l = 0; l < npop; ++l)
                         {
-                            double feq[nSpecies];
-                            double fstr[nSpecies];
-                            // double freact[nSpecies];
-
+                            double feq[nSpecies], fstr[nSpecies], freact[nSpecies];
                             for (size_t a = 0; a < nSpecies; ++a)
                             {
-
-                                species[a][i][j][k].Vdiff_x = du[a];
-                                species[a][i][j][k].Vdiff_y = dv[a];
-                                species[a][i][j][k].Vdiff_z = dw[a];
-
-                                double velocity_spec[3] = { velocity[0] + du[a],
-                                                            velocity[1] + dv[a], 
-                                                            velocity[2] + dw[a]};
+                                double velocity_spec[3] = { velocity[0] + species[a][i][j][k].Vdiff_x,
+                                                            velocity[1] + species[a][i][j][k].Vdiff_y, 
+                                                            velocity[2] + species[a][i][j][k].Vdiff_z};
 
                                 theta = units.energy_mass( gas->RT()/gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
+
                                 double corr[3] = {0, 0, 0};
                                 feq[a] = calculate_feq(l, species[a][i][j][k].rho, velocity, theta, corr);
                                 fstr[a] = calculate_feq(l, species[a][i][j][k].rho, velocity_spec, theta, corr);
-                                // freact[a] = feq[a] / species[a][i][j][k].rho * species[a][i][j][k].rho_dot;
+                                freact[a] = calculate_feq(l, species[a][i][j][k].rho_dot, velocity, theta, corr);
                             }
-                            
-                            for(size_t a = 0; a < nSpecies; ++a)
+
+                            for (size_t a = 0; a < nSpecies; ++a)
                             {
                                 double F_a = 0.0;
-                                double beta = 0.0;
-                                for(size_t b = 0; b < nSpecies; ++b)
-                                {
-                                    F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
-                                }
+
+                                if (diffModel == 0) // Stefan-Maxwell Diffusion
+                                    for(size_t b = 0; b < nSpecies; ++b)
+                                        F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
+                                else    // Mixture-averaged Diffusion
+                                    for(size_t b = 0; b < nSpecies; ++b)
+                                        F_a += lambda[a]*invtau_a[b]*(feq[b]-fstr[b]);
+
+                                species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta[a]*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + dt_sim*freact[a];
                                 
-                                beta = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
-
-                                species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta-1.0)*F_a;                               
-                                // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + omega[a]*(feq[a]-species[a][i][j][k].f[l]) + 2.0*beta*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta-1.0)*F_a;
-                                // std::cout << i << " || " << species[a][i][j][k].f[l] << " | " << species[a][i][j][k].fpc[l] << std::endl;
-
-                                // std::cout << i << " | omega species : " << 2.0*beta << std::endl;
-
                             }
-                        }  
+                        }                        
                     }
                 }
             }

@@ -544,19 +544,21 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
     int NY = 1; 
     int NZ = 1;
     
-    double si_len = 2E-4;   // [m]
+    double si_len = 4E-4;   // [m]
     double si_u_max = 1E+3; // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0; // [K]
 
-    units.set_m_kg_s(NX, VEL0, RHO0, 0.1, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-    std::vector<std::string> species = { "H2", "Ar" , "CH4"};
-    // std::vector<std::string> species = { "AR" , "N2"};
+    // std::vector<std::string> species = { "H2", "Ar" , "CH4"};
+    std::vector<std::string> species = { "AR" , "N2"};
     
     LBM lb(NX, NY, NZ, species);
-    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+    // lb.set_diffusionModel("Stefan-Maxwell");
+    lb.set_diffusionModel("Mixture-Averaged");
 
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
@@ -577,16 +579,16 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.7);
-                    lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.7);
-                    lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.7);
+                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.7);
+                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.7);
+                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.7);
 
                     // lb.species[0][i][j][k].X = smooth(0.491, 0.300, i, 0.5*Nx, 0.03);
                     // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
                     // lb.species[2][i][j][k].X = smooth(0.300, 0.515, i, 0.5*Nx, 0.03);
 
-                    // lb.species[0][i][j][k].X = smooth(1.0, 0.5, i, 0.5*Nx, 0.3);
-                    // lb.species[1][i][j][k].X = smooth(0.5, 1.0, i, 0.5*Nx, 0.3);
+                    lb.species[0][i][j][k].X = smooth(1.0, 0.0, i, 0.5*Nx, 0.3);
+                    lb.species[1][i][j][k].X = smooth(0.0, 1.0, i, 0.5*Nx, 0.3);
 
                     
                     lb.mixture[i][j][k].p = smooth(1*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
@@ -601,7 +603,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         }
     }
 
-    lb.run(1000000000,10000);
+    lb.run(40000,10000);
 }
 
 
@@ -682,18 +684,29 @@ void main_setup() // Perfectly stirred reactor ---------------------------------
     int NX = 4; 
     int NY = 4; 
     int NZ = 4;
+
+    double equivalanceRatio = 1.0;
     
-    double si_len = 0.01;    // [m]
+    double si_len = 1e-4;    // [m]
     double si_u_max = 1.0E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 1400.0;// [K]
 
-    units.set_m_kg_s(NX, VEL0, RHO0, 0.3, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-    std::vector<std::string> species = { "H2", "H2O" };
-
+    std::vector<std::string> species = { "H2", "O2", "N2" };
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+    auto sol = Cantera::newSolution("gri30.yaml", "gri30");
+    auto gas = sol->thermo();
+    gas->setState_TP(units.temp(si_temp) , units.temp(si_temp));
+    std::string xFuel = "H2:1.0";
+    std::string xOx = "O2:1.0, N2:3.76";
+    gas->setEquivalenceRatio(equivalanceRatio, xFuel, xOx);
+    double xH2 = gas->moleFraction("H2");
+    double xO2 = gas->moleFraction("O2");
+    double xN2 = gas->moleFraction("N2");
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
@@ -715,15 +728,15 @@ void main_setup() // Perfectly stirred reactor ---------------------------------
                     lb.mixture[i][j][k].u = 0.0;
                     lb.mixture[i][j][k].v = 0.0;
                     lb.mixture[i][j][k].w = 0.0; 
-                    lb.species[0][i][j][k].X = 2./3.;     // H2 Mole Fraction
-                    lb.species[1][i][j][k].X = 1./3.;     // H2O Mole Fraction
-        
+                    lb.species[0][i][j][k].X = xH2;     // H2 Mole Fraction
+                    lb.species[1][i][j][k].X = xO2;     // O2 Mole Fraction
+                    lb.species[2][i][j][k].X = xN2;     // N2 Mole Fraction
                 }
             }
         }
     }
 
-    lb.run(1000,10);
+    lb.run(50000,1000);
 }
 
 #elif defined CONDUCTION_1D

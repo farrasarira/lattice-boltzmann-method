@@ -49,7 +49,7 @@
         const int opposite[27] = {0,2,1,4,3,6,5,8,7,10,9,12,11,14,13,16,15,18,17,20,19,22,21,24,23,26,25};
     #endif
 
-    class LATTICE
+    class MIXTURE
     {
         public:
             short type = TYPE_F;    // type of lattice (FLUID, SOLID, ... see setup for more)
@@ -84,7 +84,7 @@
             // ###### Momentum Kinetic Equation Parameter ######
             double X = 0.0;             // mole fraction
             double rho = 0.0;           // density
-            // double rho_dot = 0.0;   // rate of formation/destruction during chemical reaction.
+            double rho_dot = 0.0;       // rate of formation/destruction during chemical reaction.
             double Vdiff_x = 0.0;       // diffusion velocity in x direction               
             double Vdiff_y = 0.0;       // diffusion velocity in y direction       
             double Vdiff_z = 0.0;       // diffusion velocity in z direction
@@ -93,7 +93,8 @@
             double delYz = 0.0;         // gradient of mass fraction in z direction
 
             #ifndef FD
-                double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
+                double f[npop] = {0.0};     // distribution function
+                double fpc[npop] = {0.0};   // distribution function post collistion  
                 double u = 0.0;     // velocity in x-direction
                 double v = 0.0;     // velocity in y-direction
                 double w = 0.0;     // velocity in z-direction
@@ -123,9 +124,10 @@
 
             size_t nSpecies = 0;
             std::vector<std::string> speciesName;
+            size_t diffModel = 1;    // Diffusion Model 
         
         public:
-            LATTICE *** mixture;
+            MIXTURE *** mixture;
             #ifdef MULTICOMP
                 std::vector<SPECIES***> species;
             #endif
@@ -178,6 +180,13 @@
             void set_gasconst(double gas_const){this->gas_const = gas_const;};
             void set_prtl(double prtl){this->prtl = prtl;};
             void set_gamma(double gamma){this->gamma = gamma;};
+            void set_diffusionModel(const std::string& model)
+            {
+                if (model == "Stefan-Maxwell") 
+                    this->diffModel = 0;
+                else if (model == "Mixture-Averaged")
+                    this->diffModel = 1;
+            }
     };
 
 #endif
