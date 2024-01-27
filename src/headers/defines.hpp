@@ -19,9 +19,9 @@
     // #define SOD_SHOCK_1D
     // #define SOD_SHOCK
     // #define SOD_SHOCK_SIUNIT
-    #define TERNARY_DIFFUSION
+    // #define TERNARY_DIFFUSION
     // #define SHEAR_LAYER_MULTICOMP
-    // #define PERFECTLY_STIRRED_REACTOR_3D
+    #define PERFECTLY_STIRRED_REACTOR_3D
     // #define CONDUCTION_1D
     // #define COUETTE_FLOW
     // #define COUETTE_FLOW_MULTICOMP
@@ -34,8 +34,8 @@
 
     // ########## Parallel Computation ###############
     // Uncomment 2 lines of code below to utilize parallel computation using OpenMP
-    #define PARALLEL
-    #define NUM_THREADS 12
+    // #define PARALLEL
+    // #define NUM_THREADS 12
 
     // ############### OUTPUT UNIT ###################
     #define OUTPUT_SI               // uncomment for SI UNIT, comment for LATTICE UNIT
