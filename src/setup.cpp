@@ -453,30 +453,17 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
     int NY = 1; 
     int NZ = 1;
     
-    double si_len = 1E-3;    // [m]
+    double si_len = 1E-1;    // [m]
     double si_u_max = 1E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
 
-    // int NX = 6000; 
-    // int NY = 1; 
-    // int NZ = 1;
-    
-    // double si_len = 1E-3;    // [m]
-    // double si_u_max = 1.0E+3;  // [m/s]
-    // double si_rho = 1.225;  // [kg/m^3]
-    // double si_temp = 400.0;// [K]
-
     units.set_m_kg_s(NX, VEL0, RHO0, 0.1, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
     std::vector<std::string> species = { "Ar" };
-    // std::vector<std::string> species = { "ch4", "o2"};
-    // std::vector<std::string> species = {"Ar", "CH4", "NH3"};
-    // std::vector<std::string> species = {"H2", "N2", "C2H6"};
-    
+        
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
-
 
     #pragma omp parallel for
     for(int i = 0; i < Nx ; ++i)
@@ -497,18 +484,7 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.1);
-                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.1);
-                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.1);
-
-                    // lb.species[0][i][j][k].X = smooth(0.45, 0.55, i, 0.5*Nx, 0.07);
-                    // lb.species[1][i][j][k].X = smooth(0.55, 0.45, i, 0.5*Nx, 0.07);
-                    // lb.species[2][i][j][k].X = smooth(0.58, 0.43, i, 0.5*Nx, 0.07);
-
                     lb.species[0][i][j][k].X = 1.0;
-
-                    // lb.species[0][i][j][k].X = smooth(0.52, 0.48, i, 0.5*Nx, 0.3);
-                    // lb.species[1][i][j][k].X = smooth(0.48, 0.52, i, 0.5*Nx, 0.3);
 
                     // lb.mixture[i][j][k].p = smooth(2*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
                     // lb.mixture[i][j][k].temp = smooth(units.temp(400.0), units.temp(400.0), i, 0.5*Nx, 0.3);                  
@@ -533,7 +509,7 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
         }
     }
 
-    lb.run(1,1);
+    lb.run(1000,100);
 }
 
 #elif defined TERNARY_DIFFUSION
@@ -678,7 +654,69 @@ void main_setup() // 3D Shear layer multicomponent
 }
 
 
-#elif defined PERFECTLY_STIRRED_REACTOR_3D
+#elif defined PERFECTLY_STIRRED_REACTOR_3D_AMMONIA
+void main_setup() // Perfectly stirred reactor ------------------------------------------------------------------------------------------
+{
+    int NX = 4; 
+    int NY = 4; 
+    int NZ = 4;
+
+    double equivalanceRatio = 1.0;
+    
+    double si_len = 1e-4;    // [m]
+    double si_u_max = 1.0E+3;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 1400.0;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    std::vector<std::string> species = { "NH3", "O2", "N2" };
+    LBM lb(NX, NY, NZ, species);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+    lb.set_diffusionModel("Mixture-Averaged");
+
+    auto sol = Cantera::newSolution("gri30.yaml", "gri30");
+    auto gas = sol->thermo();
+    gas->setState_TP(units.temp(si_temp) , units.temp(si_temp));
+    std::string xFuel = "NH3:1.0";
+    std::string xOx = "O2:1.0, N2:3.76";
+    gas->setEquivalenceRatio(equivalanceRatio, xFuel, xOx);
+    double xH2 = gas->moleFraction("NH3");
+    double xO2 = gas->moleFraction("O2");
+    double xN2 = gas->moleFraction("N2");
+
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( i==0 || i==Nx-1 || j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.mixture[i][j][k].temp = units.temp(si_temp);
+                    lb.mixture[i][j][k].p = 1.0*units.p(Cantera::OneAtm); 
+                
+                    lb.mixture[i][j][k].u = 0.0;
+                    lb.mixture[i][j][k].v = 0.0;
+                    lb.mixture[i][j][k].w = 0.0; 
+                    lb.species[0][i][j][k].X = xH2;     // H2 Mole Fraction
+                    lb.species[1][i][j][k].X = xO2;     // O2 Mole Fraction
+                    lb.species[2][i][j][k].X = xN2;     // N2 Mole Fraction
+                }
+            }
+        }
+    }
+
+    lb.run(50000,1000);
+}
+
+#elif defined PERFECTLY_STIRRED_REACTOR_3D_HYDROGEN
 void main_setup() // Perfectly stirred reactor ------------------------------------------------------------------------------------------
 {
     int NX = 4; 
@@ -697,8 +735,9 @@ void main_setup() // Perfectly stirred reactor ---------------------------------
     std::vector<std::string> species = { "H2", "O2", "N2" };
     LBM lb(NX, NY, NZ, species);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+    lb.set_diffusionModel("Mixture-Averaged");
 
-    auto sol = Cantera::newSolution("gri30.yaml", "gri30");
+    auto sol = Cantera::newSolution("h2o2.yaml", "ohmech");
     auto gas = sol->thermo();
     gas->setState_TP(units.temp(si_temp) , units.temp(si_temp));
     std::string xFuel = "H2:1.0";
@@ -1008,6 +1047,76 @@ void main_setup() // 3D Taylor-Green Vortex (multicomponent) -------------------
     }
     
     lb.run(100,10);
+}
+
+#elif defined COUNTERFLOW_NONREACTIVE
+
+void main_setup() // Ternary Gas Diffusion --------------------------------------------------------
+{
+    int NX = 200; 
+    int NY = 400; 
+    int NZ = 1;
+    
+    double si_len = 4E-4;   // [m]
+    double si_u_max = 1E+3; // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 300.0; // [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    // std::vector<std::string> species = { "H2", "Ar" , "CH4"};
+    std::vector<std::string> species = { "AR" , "N2"};
+    
+    LBM lb(NX, NY, NZ, species);
+    // lb.set_diffusionModel("Stefan-Maxwell");
+    lb.set_diffusionModel("Mixture-Averaged");
+
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+                
+                if (i==0 || i==Nx-1 )
+                {
+                    lb.mixture[i][j][k].type = TYPE_A;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.7);
+                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.7);
+                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.7);
+
+                    // lb.species[0][i][j][k].X = smooth(0.491, 0.300, i, 0.5*Nx, 0.03);
+                    // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
+                    // lb.species[2][i][j][k].X = smooth(0.300, 0.515, i, 0.5*Nx, 0.03);
+
+                    lb.species[0][i][j][k].X = smooth(1.0, 0.0, i, 0.5*Nx, 0.3);
+                    lb.species[1][i][j][k].X = smooth(0.0, 1.0, i, 0.5*Nx, 0.3);
+
+                    
+                    lb.mixture[i][j][k].p = smooth(1*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
+                    lb.mixture[i][j][k].temp = smooth(units.temp(300.0), units.temp(300.0), i, 0.5*Nx, 0.3);                  
+                  
+                    lb.mixture[i][j][k].u = 0.0;
+                    lb.mixture[i][j][k].v = 0.0;
+                    lb.mixture[i][j][k].w = 0.0;
+                     
+                }
+            }
+        }
+    }
+
+    lb.run(40000,10000);
 }
 
 #endif
