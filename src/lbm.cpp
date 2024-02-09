@@ -1070,7 +1070,10 @@ void LBM::Collide_Species(){
                             denom += mass_frac[b] * invtau_a[b];
 
                         for (size_t a = 0; a < nSpecies; ++a){                                
-                            lambda[a] = mass_frac[a] * invtau_a[a] / denom;
+                            if (denom == 0.0)
+                                lambda[a] = 0.0;
+                            else
+                                lambda[a] = mass_frac[a] * invtau_a[a] / denom;
                             beta[a] = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
                         }
 

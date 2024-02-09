@@ -463,7 +463,7 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
     std::vector<std::string> species = { "Ar" };
         
     LBM lb(NX, NY, NZ, species);
-    lb.set_diffusionModel("Stefan-Maxwell");
+    lb.set_diffusionModel("Mixture-Averaged");
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
 
     #pragma omp parallel for
