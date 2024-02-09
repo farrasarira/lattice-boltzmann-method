@@ -71,11 +71,7 @@
             double rhoe;                // density * total energy (E)
             double energy_flux[3] = {0., 0., 0.}; // heat flux
 
-            // Third-order Moment Deviation
-            double dQdevx = 0.0;
-            double dQdevy = 0.0;
-            double dQdevz = 0.0;
-
+            double dQdevx, dQdevy, dQdevz;
     };
 
     class SPECIES
@@ -87,11 +83,10 @@
             double rho_dot = 0.0;       // rate of formation/destruction during chemical reaction.
             double Vdiff_x = 0.0;       // diffusion velocity in x direction               
             double Vdiff_y = 0.0;       // diffusion velocity in y direction       
-            double Vdiff_z = 0.0;       // diffusion velocity in z direction
-            double delYx = 0.0;         // gradient of mass fraction in x direction
-            double delYy = 0.0;         // gradient of mass fraction in y direction
-            double delYz = 0.0;         // gradient of mass fraction in z direction
+            double Vdiff_z = 0.0;       // diffusion velocity in z direction   
 
+            double delYx, delYy, delYz;      
+            
             #ifndef FD
                 double f[npop] = {0.0};     // distribution function
                 double fpc[npop] = {0.0};   // distribution function post collistion  
@@ -139,7 +134,6 @@
 
             // calculate moment
             void calculate_moment();
-            void calculate_moment(SPECIES ***species);
 
             // calculate equlibrium density
             double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
@@ -147,14 +141,12 @@
 
             // initialize
             void Init();    // initialize equilibrium  
-            void Init(SPECIES*** species, int idxSpecies); 
 
             // collision operator
             void Collide(); // BGK collision
             void Collide_Species();
-            void FD_species();
-            void FD_BC();
-            
+            void fill_BC();
+                        
             // stream
             void Streaming();   
 
