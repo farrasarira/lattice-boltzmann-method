@@ -88,7 +88,10 @@ double smooth(double left, double right, double x, double center, double alpha) 
 // calculate ratio of consecutive slopes (theta)
 double calc_ratio_slopes(double stc_n, double stc_c, double stc_p)
 {
-    return (stc_c - stc_n)/(stc_p - stc_c);
+    if (stc_p == stc_c)
+        return 0;
+    else
+        return (stc_c - stc_n)/(stc_p - stc_c);
 }
 
 double limiterMinmod(double theta)
@@ -112,7 +115,7 @@ double FD_limiterVanleer(double stc_n, double stc_c, double stc_p, double dx)
 {
     double theta = calc_ratio_slopes(stc_n, stc_c, stc_p);
     double phi = limiterVanleer(theta);
-    return phi * (stc_p - stc_c) / dx;
+    return -1.0 * phi * (stc_p - stc_c) / dx;
 }
 
 

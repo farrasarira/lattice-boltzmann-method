@@ -449,11 +449,11 @@ void main_setup() // 1D Sod shock tube -----------------------------------------
 void main_setup() // SOD SHOCK TUBE WITH SI UNIT --------------------------------------------------------
 {
     std::cout << "-------------------- SOD SCHOCK SIUNIT ---------------------" << std::endl;
-    int NX = 900; 
+    int NX = 3000; 
     int NY = 1; 
     int NZ = 1;
     
-    double si_len = 1E-1;    // [m]
+    double si_len = 1E-2;    // [m]
     double si_u_max = 1E+3;  // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0;// [K]
@@ -463,6 +463,7 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
     std::vector<std::string> species = { "Ar" };
         
     LBM lb(NX, NY, NZ, species);
+    lb.set_diffusionModel("Stefan-Maxwell");
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
 
     #pragma omp parallel for
@@ -509,7 +510,7 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
         }
     }
 
-    lb.run(1000,100);
+    lb.run(10000,1000);
 }
 
 #elif defined TERNARY_DIFFUSION

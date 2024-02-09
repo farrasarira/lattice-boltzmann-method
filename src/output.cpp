@@ -152,7 +152,7 @@ void OutputVTK(int &nout, LBM *lbm)
 			for(j=0;j<Ny;j++){
 				for(i=0;i<Nx;i++)
 				{
-					val32=(float) units.si_u(lb.species[a][i][j][k].Vdiff_x) ; fwrite(&val32,sizeof(float),1,fp);
+					val32=(float) units.si_u(lb.species[a][i][j][k].u) ; fwrite(&val32,sizeof(float),1,fp);
 				}
 			}
 		}
