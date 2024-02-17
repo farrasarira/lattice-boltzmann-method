@@ -463,7 +463,8 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
     std::vector<std::string> species = { "Ar" };
         
     LBM lb(NX, NY, NZ, species);
-    lb.set_diffusionModel("Mixture-Averaged");
+    lb.set_diffusionModel("Stefan-Maxwell");
+    // lb.set_diffusionModel("Mixture-Averaged");
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
 
     #pragma omp parallel for
@@ -521,7 +522,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
     int NY = 1; 
     int NZ = 1;
     
-    double si_len = 4E-4;   // [m]
+    double si_len = 4.0E-4;   // [m]
     double si_u_max = 1E+3; // [m/s]
     double si_rho = 1.225;  // [kg/m^3]
     double si_temp = 300.0; // [K]
@@ -580,7 +581,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         }
     }
 
-    lb.run(40000,10000);
+    lb.run(100,1);
 }
 
 

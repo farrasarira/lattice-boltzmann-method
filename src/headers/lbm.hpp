@@ -114,7 +114,7 @@
 
             double nu = 0.001;      // kinematic viscosity
             double gas_const = 1.0; // gas constant
-            double prtl = 0.5;      // prantdl number
+            double prtl = 0.7;      // prantdl number
             double gamma = 1.4;     // gamma (Cp/Cv)
 
             size_t nSpecies = 0;

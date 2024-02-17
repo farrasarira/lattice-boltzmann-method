@@ -171,6 +171,8 @@ void LBM::calculate_moment()
                                 species[a][i][j][k].v = 0.0;
                                 species[a][i][j][k].w = 0.0;
                             }
+
+                            std::cout << i << " | " << rho << " | " << species[a][i][j][k].u << std::endl;
                             Y[gas->speciesIndex(speciesName[a])]  = species[a][i][j][k].rho / mixture[i][j][k].rho;
                             species[a][i][j][k].rho_dot = 0.0;
 
@@ -179,8 +181,8 @@ void LBM::calculate_moment()
                             Y[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].rho / mixture[i][j][k].rho; 
                         #endif
                         }
-
                         gas->setMassFractions(&Y[0]);
+                        // std::cout << 1.0/units.si_rho(mixture[i][j][k].rho) << std::endl;
                         gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0/units.si_rho(mixture[i][j][k].rho),1.0e-12);
                         gas->getMoleFractions(&X[0]);
                         for(size_t a = 0; a < nSpecies; ++a) species[a][i][j][k].X = X[gas->speciesIndex(speciesName[a])];
@@ -608,12 +610,12 @@ void LBM::Collide(){
                     double str_heat_flux[3] ={  mixture[i][j][k].energy_flux[0] - velocity[0]*(mixture[i][j][k].p_tensor[0][0]-eq_p_tensor[0][0]) - velocity[1]*(mixture[i][j][k].p_tensor[1][0]-eq_p_tensor[1][0]) - velocity[2]*(mixture[i][j][k].p_tensor[2][0]-eq_p_tensor[2][0]) - 0.5*dt_sim*velocity[0]*delQdevx + q_diff[0] + q_corr[0],   //
                                                 mixture[i][j][k].energy_flux[1] - velocity[0]*(mixture[i][j][k].p_tensor[0][1]-eq_p_tensor[0][1]) - velocity[1]*(mixture[i][j][k].p_tensor[1][1]-eq_p_tensor[1][1]) - velocity[2]*(mixture[i][j][k].p_tensor[2][1]-eq_p_tensor[2][1]) - 0.5*dt_sim*velocity[1]*delQdevy + q_diff[1] + q_corr[1],   //
                                                 mixture[i][j][k].energy_flux[2] - velocity[0]*(mixture[i][j][k].p_tensor[0][2]-eq_p_tensor[0][2]) - velocity[1]*(mixture[i][j][k].p_tensor[1][2]-eq_p_tensor[1][2]) - velocity[2]*(mixture[i][j][k].p_tensor[2][2]-eq_p_tensor[2][2]) - 0.5*dt_sim*velocity[2]*delQdevz + q_diff[2] + q_corr[2]} ; //
+                    
+                    double corr[3] = {0.0, 0.0, 0.0};
 
-                    double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevx,
-                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevy,
-                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevz};
-
-                    // double corr[3] = {0.0, 0.0, 0.0};
+                    // double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevx,
+                    //                     dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevy,
+                    //                     dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevz};
 
                     for (int l = 0; l < npop; ++l){
                         // ------------- Mass and Momentum collision -----------------------------
@@ -1015,7 +1017,10 @@ void LBM::Collide_Species(){
                     int ld = gas->nSpecies();
                     std::vector<double> d(ld * ld);
                     auto trans = sols[rank]->transport();
+                    std::vector<double> mu_a(gas->nSpecies());
+                    double omega[nSpecies] = {0.0};
                     trans->getBinaryDiffCoeffs(ld, &d[0]);
+                    trans->getSpeciesViscosities(&mu_a[0]);
 
                     for(size_t a = 0; a < nSpecies; ++a){                       
                         for(size_t b = 0; b < nSpecies; ++b){
@@ -1024,21 +1029,27 @@ void LBM::Collide_Species(){
                             // std::cout << "D_ab " << gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << D_ab[a][b] << std::endl;
                             
                             tau_ab[a][b] = units.t( (mmass[a]*mmass[b]/(mix_mmass*theta)) * D_ab[a][b] );
+                            
                             // std::cout << " tau_ " <<  gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << tau_ab[a][b] << std::endl;
                         }
+                        if(species[a][i][j][k].rho==0.0)
+                            continue;
+
+                        omega[a] = mass_frac[a] * 2*species[a][i][j][k].X*mixture[i][j][k].p*dt_sim / (species[a][i][j][k].X*mixture[i][j][k].p*dt_sim + 2*units.mu(mu_a[gas->speciesIndex(speciesName[a])]));
                     }
                     
                     for(size_t a = 0; a < nSpecies; ++a){    
                         invtau_a[a] = 0.0;
                         for(size_t b = 0; b < nSpecies; ++b){                                
-                            if (a != b) invtau_a[a] += mass_frac[b] / tau_ab[a][b];  
+                            if (a != b) invtau_a[a] += mass_frac[b] / tau_ab[a][b]; 
+                            // invtau_a[a] += mass_frac[b] / tau_ab[a][b];  
                         }
                     }
 
                     if(diffModel == 0){  // Stefan-Maxwell Diffusion Model
                         for(size_t a = 0; a < nSpecies; ++a){
                             for(size_t b = 0; b < nSpecies; ++b){
-                                if (a == b) matrix_A.insert(a, b) = 1.0 + dt_sim * invtau_a[a] / 2.0;// - dt_sim/2.0*mass_frac[a]/tau_ab[a][b];
+                                if (a == b) matrix_A.insert(a, b) = 1.0 + dt_sim*invtau_a[a]/2.0;// + dt_sim/(2.0*omega[a]); //- dt_sim/2.0*mass_frac[a]/tau_ab[a][b]; 
                                 else matrix_A.insert(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b];
                             }
 
@@ -1161,22 +1172,16 @@ void LBM::Collide_Species(){
                     // for(size_t a = 0; a < nSpecies; ++a) 
                     //     R_a[a] = dt_sim/2.0 * R_a[a];
                     
-
-                    std::vector<double> mu_a(gas->nSpecies());
-                    trans->getSpeciesViscosities(&mu_a[0]);
-                    double omega[nSpecies] = {0.0};
                     double corr[nSpecies][3] = {0.0};
 
                     for(size_t a = 0; a < nSpecies; ++a){
-                        omega[a] =  2*species[a][i][j][k].X*mixture[i][j][k].p*dt_sim / (species[a][i][j][k].X*mixture[i][j][k].p*dt_sim + 2*units.mu(mu_a[a]));
-                        
                         double delQdevx = FD_limiterVanleer( species[a][i+1][j][k].rho*species[a][i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-species[a][i+1][j][k].rho*cb(species[a][i+1][j][k].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i-1][j][k].rho*species[a][i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-species[a][i-1][j][k].rho*cb(species[a][i-1][j][k].u), dx) ;
                         double delQdevy = FD_limiterVanleer( species[a][i][j+1][k].rho*species[a][i][j+1][k].u*(1-3*gas_const*mixture[i][j+1][k].temp)-species[a][i][j+1][k].rho*cb(species[a][i][j+1][k].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i][j-1][k].rho*species[a][i][j-1][k].u*(1-3*gas_const*mixture[i][j-1][k].temp)-species[a][i][j-1][k].rho*cb(species[a][i][j-1][k].u), dy) ;
                         double delQdevz = FD_limiterVanleer( species[a][i][j][k+1].rho*species[a][i][j][k+1].u*(1-3*gas_const*mixture[i][j][k+1].temp)-species[a][i][j][k+1].rho*cb(species[a][i][j][k+1].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i][j][k-1].rho*species[a][i][j][k-1].u*(1-3*gas_const*mixture[i][j][k-1].temp)-species[a][i][j][k-1].rho*cb(species[a][i][j][k-1].u), dz) ;
                     
-                        corr[a][0] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevx;
-                        corr[a][1] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevy;
-                        corr[a][2] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevz;
+                        // corr[a][0] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevx;
+                        // corr[a][1] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevy;
+                        // corr[a][2] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevz;
                     }
 
                     theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());                    
@@ -1203,15 +1208,17 @@ void LBM::Collide_Species(){
                             if (diffModel == 0){ // Stefan-Maxwell Diffusion
                                 for(size_t b = 0; b < nSpecies; ++b)
                                     if (a != b) F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
+                                    // F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
                             }
                             else{    // Mixture-averaged Diffusion
                                 for(size_t b = 0; b < nSpecies; ++b)
-                                    if (a != b) F_a += lambda[a]*invtau_a[b]*(feq[b]-fstr[b]);  
+                                    F_a += lambda[a]*invtau_a[b]*(feq[b]-fstr[b]);  
                             }                              
 
                             // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta[a]*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + dt_sim*freact[a];
                             // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta[a]*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + feqM*R_a[a];
-                            species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + (omega[a]+2.0*beta[a])*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a;
+                            // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + (omega[a]+2.0*beta[a])*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a;
+                            species[a][i][j][k].fpc[l] = (2.0*beta[a])*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + feq[a];
                         }
                     }   
                 }
