@@ -533,8 +533,8 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
     std::vector<std::string> species = { "AR" , "N2"};
     
     LBM lb(NX, NY, NZ, species);
-    // lb.set_diffusionModel("Stefan-Maxwell");
-    lb.set_diffusionModel("Mixture-Averaged");
+    lb.set_diffusionModel("Stefan-Maxwell");
+    // lb.set_diffusionModel("Mixture-Averaged");
 
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
 
@@ -557,9 +557,9 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.7);
-                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.7);
-                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.7);
+                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.3);
+                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.3);
+                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.3);
 
                     // lb.species[0][i][j][k].X = smooth(0.491, 0.300, i, 0.5*Nx, 0.03);
                     // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
@@ -581,7 +581,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         }
     }
 
-    lb.run(100,1);
+    lb.run(40000,1000);
 }
 
 
