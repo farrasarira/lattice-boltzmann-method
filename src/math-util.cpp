@@ -115,7 +115,7 @@ double FD_limiterVanleer(double stc_n, double stc_c, double stc_p, double dx)
 {
     double theta = calc_ratio_slopes(stc_n, stc_c, stc_p);
     double phi = limiterVanleer(theta);
-    return -1.0 * phi * (stc_p - stc_c) / dx;
+    return phi * (stc_p - stc_c) / dx;
 }
 
 

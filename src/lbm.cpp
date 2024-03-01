@@ -56,15 +56,6 @@ LBM::LBM(int Nx, int Ny, int Nz, std::vector<std::string> species){
             }
         }
     }
-
-    // Create Cantera's Solution object
-    int nThreads = omp_get_max_threads();
-    std::cout << "nThreads : " << nThreads << std::endl;
-    for(int i = 0; i < nThreads; ++i){
-        auto sol = Cantera::newSolution("gri30.yaml", "gri30", "multicomponent");
-        sols.push_back(sol);
-    }
-
 }
 #endif
 
@@ -145,42 +136,17 @@ void LBM::calculate_moment()
                         std::vector<double> X (gas->nSpecies());
                         
                         for(size_t a = 0; a < nSpecies; ++a){
+                            // if (a == nSpecies-1){
+                            //     species[a][i][j][k].rho_n = mixture[i][j][k].rho;
+                            //     for(size_t b = 0; b < nSpecies-1; ++b)
+                            //         species[a][i][j][k].rho_n -= species[b][i][j][k].rho_n; 
+                            // }
 
-                        #ifndef FD
-                            double rho = 0.0;
-                            double rhou = 0.0;
-                            double rhov = 0.0;
-                            double rhow = 0.0;
-                            
-                            for (int l = 0; l < npop; ++l){
-                                rho  += species[a][i][j][k].f[l];
-                                rhou += species[a][i][j][k].f[l]*cx[l];
-                                rhov += species[a][i][j][k].f[l]*cy[l];
-                                rhow += species[a][i][j][k].f[l]*cz[l];
-                            }
-
-                            species[a][i][j][k].rho = rho;
-
-                            if(rho != 0){
-                                species[a][i][j][k].u = rhou / rho;
-                                species[a][i][j][k].v = rhov / rho;
-                                species[a][i][j][k].w = rhow / rho;
-                            }
-                            else{
-                                species[a][i][j][k].u = 0.0;
-                                species[a][i][j][k].v = 0.0;
-                                species[a][i][j][k].w = 0.0;
-                            }
-                            Y[gas->speciesIndex(speciesName[a])]  = species[a][i][j][k].rho / mixture[i][j][k].rho;
-                            species[a][i][j][k].rho_dot = 0.0;
-
-                        #elif defined FD
                             species[a][i][j][k].rho = species[a][i][j][k].rho_n; 
                             Y[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].rho / mixture[i][j][k].rho; 
-                        #endif
                         }
-
                         gas->setMassFractions(&Y[0]);
+                        // std::cout << 1.0/units.si_rho(mixture[i][j][k].rho) << std::endl;
                         gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0/units.si_rho(mixture[i][j][k].rho),1.0e-12);
                         gas->getMoleFractions(&X[0]);
                         for(size_t a = 0; a < nSpecies; ++a) species[a][i][j][k].X = X[gas->speciesIndex(speciesName[a])];
@@ -196,160 +162,6 @@ void LBM::calculate_moment()
     }
 
     fill_BC();
-
-    // #ifdef PARALLEL 
-    //     #pragma omp parallel for schedule(static, 1) 
-    // #endif
-    // for(int i = 0; i < Nx ; ++i)
-    // {
-    //     for(int j = 0; j < Ny; ++j)
-    //     {
-    //         for(int k = 0; k < Nz; ++k)
-    //         {
-    //             if (mixture[i][j][k].type == TYPE_F|| mixture[i][j][k].type == TYPE_E)     
-    //             {
-    //                 #ifdef MULTICOMP
-    //                     int rank = omp_get_thread_num();
-    //                     auto gas = sols[rank]->thermo();
-    //                     std::vector<double> Y (gas->nSpecies());
-    //                     for(size_t a = 0; a < nSpecies; ++a) Y[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].rho / mixture[i][j][k].rho ;
-    //                     gas->setMassFractions(&Y[0]);
-    //                     gas->setState_TD(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho));
-                        
-    //                     gas_const = units.cp(Cantera::GasConstant/gas->meanMolecularWeight());
-    //                 #endif
-
-    //                 if (i == 1)
-    //                 {
-    //                     dQdevx[i][j][k] = ( (mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u)) - (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) ) /(dx);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYx[a][i][j][k] = ((species[a][i+1][j][k].rho / mixture[i+1][j][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dx);
-    //                     #endif
-    //                 }
-    //                 else
-    //                 {
-    //                     dQdevx[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u)) - (mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u)) ) /(dx);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYx[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i-1][j][k].rho / mixture[i-1][j][k].rho)) / (dx);
-    //                     #endif
-    //                 }
-
-    //                 if (j == 1)
-    //                 {
-    //                     dQdevy[i][j][k] = ( (mixture[i][j+1][k].rho*mixture[i][j+1][k].v*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].v)) - (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) ) /(dy);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYy[a][i][j][k] = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dy);
-    //                     #endif
-    //                 }
-    //                 else
-    //                 {
-    //                     dQdevy[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].v*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].v)) - (mixture[i][j-1][k].rho*mixture[i][j-1][k].v*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].v)) ) /(dy);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYy[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (dy);
-    //                     #endif
-    //                 }
-
-    //                 if (k == 1)
-    //                 {
-    //                     dQdevz[i][j][k] = ( (mixture[i][j][k+1].rho*mixture[i][j][k+1].w*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].w)) - (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w)) ) /(dz);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYz[a][i][j][k] = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k].rho / mixture[i][j][k].rho)) / (dz);
-    //                     #endif
-    //                 }
-    //                 else
-    //                 {
-    //                     dQdevz[i][j][k] = ( (mixture[i][j][k].rho*mixture[i][j][k].w*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].w))- (mixture[i][j][k-1].rho*mixture[i][j][k-1].w*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].w)) ) /(dz);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         delYz[a][i][j][k] = ((species[a][i][j][k].rho / mixture[i][j][k].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (dz);
-    //                     #endif
-    //                 }                
-                    
-    //                 #ifdef MULTICOMP
-    //                     // for(size_t a = 0; a < nSpecies; a++)
-    //                     // {                                                     
-    //                     //     species[a][i][j][k].delYx = ((species[a][i+1][j][k].rho / mixture[i+1][j][k].rho) - (species[a][i-1][j][k].rho / mixture[i-1][j][k].rho)) / (2*dx);
-    //                     //     species[a][i][j][k].delYy = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (2*dy);
-    //                     //     species[a][i][j][k].delYz = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (2*dz);
-    //                     //     // std::cout << i << " | " << idx_p << " | " << idx_n << " | " << species[a][i][j][k].delYx << " | " << species[a][i][j][k].delYy << " | " << species[a][i][j][k].delYz << std::endl;
-    //                     // }
-    //                 #endif
-
-    //             }
-    //         }
-    //     }
-    // }
-
-    // #ifdef PARALLEL 
-    //     #pragma omp parallel for schedule(static, 1) 
-    // #endif
-    // for(int i = 0; i < Nx ; ++i)
-    // {
-    //     for(int j = 0; j < Ny; ++j)
-    //     {
-    //         for(int k = 0; k < Nz; ++k)
-    //         {
-    //             if (mixture[i][j][k].type == TYPE_F|| mixture[i][j][k].type == TYPE_E)     
-    //             {
-    //                 if (i == Nx-2) 
-    //                 {
-    //                     mixture[i][j][k].dQdevx = LIMITER_TYPE(dQdevx[i-1][j][k], dQdevx[i][j][k]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYx = LIMITER_TYPE(delYx[a][i-1][j][k], delYx[a][i][j][k]);
-    //                     #endif
-    //                 }
-    //                 else 
-    //                 {
-    //                     mixture[i][j][k].dQdevx = LIMITER_TYPE(dQdevx[i][j][k],dQdevx[i+1][j][k]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYx = LIMITER_TYPE(delYx[a][i][j][k], delYx[a][i+1][j][k]);
-    //                     #endif  
-    //                 }
-
-    //                 if (j == Ny-2) 
-    //                 {
-    //                     mixture[i][j][k].dQdevy = LIMITER_TYPE(dQdevy[i][j-1][k],dQdevy[i][j][k]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYy = LIMITER_TYPE(delYy[a][i][j-1][k], delYy[a][i][j][k]);
-    //                     #endif
-    //                 }
-    //                 else 
-    //                 {
-    //                     mixture[i][j][k].dQdevy = LIMITER_TYPE(dQdevy[i][j][k],dQdevy[i][j+1][k]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYy = LIMITER_TYPE(delYy[a][i][j][k], delYy[a][i][j+1][k]);
-    //                     #endif
-    //                 }
-
-    //                 if (k == Nz-2) 
-    //                 {
-    //                     mixture[i][j][k].dQdevz = LIMITER_TYPE(dQdevz[i][j][k-1],dQdevz[i][j][k]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYz = LIMITER_TYPE(delYz[a][i][j][k-1], delYz[a][i][j][k]);
-    //                     #endif
-    //                 }
-    //                 else 
-    //                 {
-    //                     mixture[i][j][k].dQdevz = LIMITER_TYPE(dQdevz[i][j][k],dQdevz[i][j][k+1]);
-    //                     #ifdef MULTICOMP
-    //                     for(size_t a = 0; a < nSpecies; ++a)
-    //                         species[a][i][j][k].delYz = LIMITER_TYPE(delYz[a][i][j][k], delYz[a][i][j][k+1]);
-    //                     #endif
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 double LBM::calculate_feq(int l, double rho, double velocity[], double theta, double corr[]){
@@ -420,8 +232,79 @@ double LBM::calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R
     return geq;
 }
 
+void LBM::calculate_feq_geq(double f_tgt[], double g_tgt[], double rho_bb, double vel_tgt[], double temp_tgt)
+{
+    #ifndef MULTICOMP
+    double p_tgt = rho_bb * gas_const * temp_tgt;
+    double theta = gas_const*temp_tgt;
+    double cv = gas_const / (gamma - 1.0);
+    double cp = cv + gas_const;
+    double internal_energy = cv * temp_tgt;
+    double enthalpy = cp * temp_tgt; // H = Cp * T = (Cv + 1) * T
+    #else
+        // int rank = omp_get_thread_num();
+        // auto gas = sols[rank]->thermo();
+        // std::vector <double> Y (gas->nSpecies());
+        // for(size_t a = 0; a < nSpecies; ++a)
+        //     Y[gas->speciesIndex(speciesName[a])] = Y_bb[a];
+        
+        // gas->setMassFractions(&Y[0]);
+        // gas->setState_TD(units.si_temp(temp_tgt), units.si_rho(rho_bb));
+
+        // double internal_energy = units.energy_mass(gas->intEnergy_mass());
+        // double enthalpy = units.energy_mass(gas->enthalpy_mass());
+
+        // double p_tgt = units.p(gas->pressure());
+        // double theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());      
+    #endif
+
+    double rhoe = rho_bb*(internal_energy + 0.5 * v_sqr(vel_tgt[0], vel_tgt[1], vel_tgt[2]));
+    double total_enthalpy = enthalpy + 0.5 * v_sqr(vel_tgt[0], vel_tgt[1], vel_tgt[2]);
+    double eq_heat_flux[3] = {  total_enthalpy*rho_bb*vel_tgt[0] ,
+                                total_enthalpy*rho_bb*vel_tgt[1] ,
+                                total_enthalpy*rho_bb*vel_tgt[2] };
+    double eq_p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
+                                {0., 0., 0.},
+                                {0., 0., 0.}};
+    double eq_R_tensor[3][3] = {{0., 0., 0.},    // second-order moment of g
+                                {0., 0., 0.},
+                                {0., 0., 0.}};
+
+    for(int p=0; p < 3; ++p){
+        for(int q=0; q < 3; ++q){
+            eq_p_tensor[p][q] = (p==q) ? p_tgt+rho_bb*vel_tgt[p]*vel_tgt[q] : rho_bb*vel_tgt[p]*vel_tgt[q]; 
+            eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + p_tgt*vel_tgt[p]*vel_tgt[q];
+        }  
+    }
+    
+    double corr[3]= {0, 0, 0};
+
+    for (int l=0; l < npop; ++l){   
+        f_tgt[l] = calculate_feq(l, rho_bb, vel_tgt, theta, corr);
+        g_tgt[l] = calculate_geq(l, rhoe, eq_heat_flux, eq_R_tensor, theta);
+    }
+}
+
 // Initialize the disribution function from known macroscopic properties
 void LBM::Init(){
+
+    // Create Cantera's Solution object
+    #ifdef MULTICOMP
+    int nThreads = omp_get_max_threads();
+    std::cout << "nthread : " << nThreads << std::endl;
+    for(int i = 0; i < nThreads; ++i){
+        if (diffModel == 0){
+            auto sol = Cantera::newSolution("gri30.yaml", "gri30", "multicomponent");
+            sols.push_back(sol);
+        }
+        else{ 
+            auto sol = Cantera::newSolution("gri30.yaml", "gri30", "mixture-averaged");
+            sols.push_back(sol);
+        }
+    }
+    #endif
+    
+
     #ifdef PARALLEL 
         #pragma omp parallel for schedule(static, 1) 
     #endif
@@ -488,21 +371,11 @@ void LBM::Init(){
                         mixture[i][j][k].g[l]=calculate_geq(l, mixture[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
                     }     
 
-                    #if defined MULTICOMP && !defined FD
-                        // Species distribution function Initialization
-                        for(size_t a = 0; a < nSpecies; ++a){
-                            species[a][i][j][k].rho = gas->massFraction(gas->speciesIndex(speciesName[a])) * mixture[i][j][k].rho;
-                            theta = units.energy_mass(gas->RT() / gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
-
-                            for (int l = 0; l < npop; ++l)
-                                species[a][i][j][k].f[l]=calculate_feq(l, species[a][i][j][k].rho, velocity, theta, corr);
-                        }
-
-                    #elif defined MULTICOMP && defined FD
-                        for(size_t a = 0; a < nSpecies; ++a)
-                        {
-                            species[a][i][j][k].rho = mixture[i][j][k].rho * gas->massFraction(gas->speciesIndex(speciesName[a]));
-                        }
+                    #ifdef MULTICOMP
+                    // Species distribution function Initialization
+                    for(size_t a = 0; a < nSpecies; ++a){
+                        species[a][i][j][k].rho = mixture[i][j][k].rho * gas->massFraction(gas->speciesIndex(speciesName[a]));
+                    }
                     #endif
                 }
             }
@@ -577,17 +450,19 @@ void LBM::Collide(){
                         }  
                     }
 
+                    #ifdef multicomp
                     double delYx[nSpecies], delYy[nSpecies], delYz[nSpecies];
                     for(size_t a = 0; a < nSpecies; ++a){
                         delYx[a] = ((species[a][i+1][j][k].rho / mixture[i+1][j][k].rho) - (species[a][i-1][j][k].rho / mixture[i-1][j][k].rho)) / (dx);
                         delYy[a] = ((species[a][i][j+1][k].rho / mixture[i][j+1][k].rho) - (species[a][i][j-1][k].rho / mixture[i][j-1][k].rho)) / (dy);
                         delYz[a] = ((species[a][i][j][k+1].rho / mixture[i][j][k+1].rho) - (species[a][i][j][k-1].rho / mixture[i][j][k-1].rho)) / (dz);
                     }
+                    #endif
 
                     double delQdevx, delQdevy, delQdevz;
-                    delQdevx = FD_limiterVanleer( mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u), dx) ;
-                    delQdevy = FD_limiterVanleer( mixture[i][j+1][k].rho*mixture[i][j+1][k].u*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i][j-1][k].rho*mixture[i][j-1][k].u*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].u), dy) ;
-                    delQdevz = FD_limiterVanleer( mixture[i][j][k+1].rho*mixture[i][j][k+1].u*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i][j][k-1].rho*mixture[i][j][k-1].u*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].u), dz) ;
+                    delQdevx = FD_limiterVanleer( mixture[i-1][j][k].rho*mixture[i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-mixture[i-1][j][k].rho*cb(mixture[i-1][j][k].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i+1][j][k].rho*mixture[i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-mixture[i+1][j][k].rho*cb(mixture[i+1][j][k].u), dx) ;
+                    delQdevy = FD_limiterVanleer( mixture[i][j-1][k].rho*mixture[i][j-1][k].u*(1-3*gas_const*mixture[i][j-1][k].temp)-mixture[i][j-1][k].rho*cb(mixture[i][j-1][k].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i][j+1][k].rho*mixture[i][j+1][k].u*(1-3*gas_const*mixture[i][j+1][k].temp)-mixture[i][j+1][k].rho*cb(mixture[i][j+1][k].u), dy) ;
+                    delQdevz = FD_limiterVanleer( mixture[i][j][k-1].rho*mixture[i][j][k-1].u*(1-3*gas_const*mixture[i][j][k-1].temp)-mixture[i][j][k-1].rho*cb(mixture[i][j][k-1].u), mixture[i][j][k].rho*mixture[i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-mixture[i][j][k].rho*cb(mixture[i][j][k].u), mixture[i][j][k+1].rho*mixture[i][j][k+1].u*(1-3*gas_const*mixture[i][j][k+1].temp)-mixture[i][j][k+1].rho*cb(mixture[i][j][k+1].u), dz) ;
 
                     double q_diff [3] = {0.0, 0.0, 0.0};
                     double q_corr [3] = {0.0, 0.0, 0.0};
@@ -608,12 +483,12 @@ void LBM::Collide(){
                     double str_heat_flux[3] ={  mixture[i][j][k].energy_flux[0] - velocity[0]*(mixture[i][j][k].p_tensor[0][0]-eq_p_tensor[0][0]) - velocity[1]*(mixture[i][j][k].p_tensor[1][0]-eq_p_tensor[1][0]) - velocity[2]*(mixture[i][j][k].p_tensor[2][0]-eq_p_tensor[2][0]) - 0.5*dt_sim*velocity[0]*delQdevx + q_diff[0] + q_corr[0],   //
                                                 mixture[i][j][k].energy_flux[1] - velocity[0]*(mixture[i][j][k].p_tensor[0][1]-eq_p_tensor[0][1]) - velocity[1]*(mixture[i][j][k].p_tensor[1][1]-eq_p_tensor[1][1]) - velocity[2]*(mixture[i][j][k].p_tensor[2][1]-eq_p_tensor[2][1]) - 0.5*dt_sim*velocity[1]*delQdevy + q_diff[1] + q_corr[1],   //
                                                 mixture[i][j][k].energy_flux[2] - velocity[0]*(mixture[i][j][k].p_tensor[0][2]-eq_p_tensor[0][2]) - velocity[1]*(mixture[i][j][k].p_tensor[1][2]-eq_p_tensor[1][2]) - velocity[2]*(mixture[i][j][k].p_tensor[2][2]-eq_p_tensor[2][2]) - 0.5*dt_sim*velocity[2]*delQdevz + q_diff[2] + q_corr[2]} ; //
+                    
+                    double corr[3] = {0.0, 0.0, 0.0};
 
-                    double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevx,
-                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevy,
-                                        dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevz};
-
-                    // double corr[3] = {0.0, 0.0, 0.0};
+                    // double corr[3] = {  dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevx,
+                    //                     dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevy,
+                    //                     dt_sim*(2-omega)/(2*mixture[i][j][k].rho*omega)*delQdevz};
 
                     for (int l = 0; l < npop; ++l){
                         // ------------- Mass and Momentum collision -----------------------------
@@ -621,7 +496,7 @@ void LBM::Collide(){
                         double geq = calculate_geq(l, mixture[i][j][k].rhoe, eq_heat_flux, eq_R_tensor, theta);
                         double gstr = calculate_geq(l, mixture[i][j][k].rhoe, str_heat_flux, eq_R_tensor, theta);
 
-                        mixture[i][j][k].fpc[l] = (1.0-omega)*mixture[i][j][k].f[l] + omega*feq;
+                        mixture[i][j][k].fpc[l] = mixture[i][j][k].f[l] + omega*(feq-mixture[i][j][k].f[l]);
                         mixture[i][j][k].gpc[l] = mixture[i][j][k].g[l] + omega1*(geq-mixture[i][j][k].g[l]) + (omega-omega1)*(gstr-mixture[i][j][k].g[l]);
                     }     
                 }
@@ -629,7 +504,6 @@ void LBM::Collide(){
         }
     }
 }
-
 
 void LBM::Streaming(){
     #ifdef PARALLEL 
@@ -713,259 +587,122 @@ void LBM::Streaming(){
                     double g_tgt[npop];
                     double f_loc[npop];
                     double g_loc[npop];
-                    bool interface_node = false; 
-                    #ifdef MULTICOMP
-                        double fa_tgt[nSpecies][npop];
-                        double fa_loc[nSpecies][npop];
-                    #endif
+                    bool interface_nodes[npop] = {false}; 
+                    int n_d = 0;
 
                     // check interface node                         
+                    for (int l=0; l < npop; ++l){
+                        i_nb = i-cx[l];
+                        j_nb = j - cy[l];
+                        k_nb = k - cz[l];
+
+                        if(mixture[i_nb][j_nb][k_nb].type==TYPE_S && mixture[int (i+cx[l])][int (j+cy[l])][int (k+cz[l])].type==TYPE_F){    
+                            interface_nodes[l] = true;
+                            n_d = n_d + 1;
+                        }                            
+                    }
+
+                    // check if there is the node is the interface with boundary
+                    if (n_d == 0)
+                        continue;
+
+                    // step 1: calculate f_tgt, g_tft, and fa_tgt
+                    double rho_bb = 0.0;
+                    for (int l=0; l < npop; ++l){
+                        rho_bb += mixture[i][j][k].f[l];
+                    }
+
+                    double vel_tgt[3] = {0.0};
+                    double T_tgt = 0.0;
+                    for (int l=0; l < npop; ++l){
+                        double q = 0.5;
+                        if (interface_nodes[l] == true){
+                            vel_tgt[0] += (q*mixture[(int)(i+cx[l])][(int)(j+cy[l])][(int)(k+cz[l])].u+mixture[(int)(i-cx[l])][(int)(j-cy[l])][(int)(k-cz[l])].u)/(1.0+q);
+                            vel_tgt[1] += (q*mixture[(int)(i+cx[l])][(int)(j+cy[l])][(int)(k+cz[l])].v+mixture[(int)(i-cx[l])][(int)(j-cy[l])][(int)(k-cz[l])].v)/(1.0+q);
+                            vel_tgt[2] += (q*mixture[(int)(i+cx[l])][(int)(j+cy[l])][(int)(k+cz[l])].w+mixture[(int)(i-cx[l])][(int)(j-cy[l])][(int)(k-cz[l])].w)/(1.0+q);
+                            T_tgt += (q*mixture[(int)(i+cx[l])][(int)(j+cy[l])][(int)(k+cz[l])].temp+mixture[(int)(i-cx[l])][(int)(j-cy[l])][(int)(k-cz[l])].temp)/(1.0+q);
+                            // std::cout << mixture[(int)(i+cx[l])][(int)(j+cy[l])][(int)(k+cz[l])].u << " | " << mixture[(int)(i-cx[l])][(int)(j-cy[l])][(int)(k-cz[l])].u << " | " << vel_tgt[0] << std::endl;
+                        }
+                    }
+
+                    vel_tgt[0] = 1.0/n_d * vel_tgt[0];
+                    vel_tgt[1] = 1.0/n_d * vel_tgt[1];
+                    vel_tgt[2] = 1.0/n_d * vel_tgt[2];
+                    T_tgt = 1.0/n_d * T_tgt;
+
+                    // std::cout << vel_tgt[0] << " | " << T_tgt << std::endl;
+                    calculate_feq_geq(f_tgt, g_tgt, rho_bb, vel_tgt, T_tgt);
+
+                    // // step 2: calculate f_loc, g_loc, and fa_loc (local distribution function)
+                    double rho_loc = 0.0;
+                    double rhou_loc = 0.0;
+                    double rhov_loc = 0.0;
+                    double rhow_loc = 0.0;
+                    double rhoe_loc = 0.0;
+
                     for (int l=0; l < npop; ++l){
                         i_nb = i - cx[l];
                         j_nb = j - cy[l];
                         k_nb = k - cz[l];
 
-                        if(mixture[i_nb][j_nb][k_nb].type==TYPE_S){    
-                            interface_node = true;
-                            break;
-                        }                            
-                    }
-
-                    // step 1: calculate f_tgt, g_tft, and fa_tgt
-                    if(interface_node == true){
-                        double rho_bb = 0.0;
-                        #ifdef MULTICOMP
-                        double Y_bb[nSpecies];
-                        #endif
-
-                        for (int l=0; l < npop; ++l){
-                            rho_bb += mixture[i][j][k].f[l];
-                            
-                        #ifdef MULTICOMP
-                            for(size_t a = 0; a < nSpecies; ++a)
-                                Y_bb[a] += species[a][i][j][k].f[l] / rho_bb;
-                        #endif
+                        if (mixture[i_nb][j_nb][k_nb].type==TYPE_S){
+                            rho_loc += f_tgt[l];
+                            rhou_loc += f_tgt[l]*cx[l];
+                            rhov_loc += f_tgt[l]*cy[l];
+                            rhow_loc += f_tgt[l]*cz[l];
+                            rhoe_loc += g_tgt[l];
                         }
-
-                        double vel_tgt[3] = {mixture[(int) i_nb][(int) j_nb][(int) k_nb].u,
-                                            mixture[(int) i_nb][(int) j_nb][(int) k_nb].v,
-                                            mixture[(int) i_nb][(int) j_nb][(int) k_nb].w};
-                        double T_tgt = mixture[(int) i_nb][(int) j_nb][(int) k_nb].temp;                      
-                        
-                        #ifndef MULTICOMP
-                            double p_tgt = rho_bb * gas_const * T_tgt;
-                            double theta = gas_const*T_tgt;
-                            double cv = gas_const / (gamma - 1.0);
-                            double cp = cv + gas_const;
-                            double internal_energy = cv * T_tgt;
-                            double enthalpy = cp * T_tgt; // H = Cp * T = (Cv + 1) * T
-                        #else
-                            int rank = omp_get_thread_num();
-                            auto gas = sols[rank]->thermo();
-                            std::vector <double> Y (gas->nSpecies());
-                            for(size_t a = 0; a < nSpecies; ++a)
-                                Y[gas->speciesIndex(speciesName[a])] = Y_bb[a];
-                            
-                            gas->setMassFractions(&Y[0]);
-                            gas->setState_TD(units.si_temp(T_tgt), units.si_rho(rho_bb));
-
-                            double internal_energy = units.energy_mass(gas->intEnergy_mass());
-                            double enthalpy = units.energy_mass(gas->enthalpy_mass());
-
-                            double p_tgt = units.p(gas->pressure());
-                            double theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());      
-                        #endif
-
-                        double rhoe = rho_bb*(internal_energy + 0.5 * v_sqr(vel_tgt[0], vel_tgt[1], vel_tgt[2]));
-                        double total_enthalpy = enthalpy + 0.5 * v_sqr(vel_tgt[0], vel_tgt[1], vel_tgt[2]);
-                        double eq_heat_flux[3] = {  total_enthalpy*rho_bb*vel_tgt[0] ,
-                                                    total_enthalpy*rho_bb*vel_tgt[1] ,
-                                                    total_enthalpy*rho_bb*vel_tgt[2] };
-                        double eq_p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
-                                                    {0., 0., 0.},
-                                                    {0., 0., 0.}};
-                        double eq_R_tensor[3][3] = {{0., 0., 0.},    // second-order moment of g
-                                                    {0., 0., 0.},
-                                                    {0., 0., 0.}};
-
-                        for(int p=0; p < 3; ++p){
-                            for(int q=0; q < 3; ++q){
-                                eq_p_tensor[p][q] = (p==q) ? p_tgt+rho_bb*vel_tgt[p]*vel_tgt[q] : rho_bb*vel_tgt[p]*vel_tgt[q]; 
-                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + p_tgt*vel_tgt[p]*vel_tgt[q];
-                            }  
-                        }
-                        
-                        double corr[3]= {0, 0, 0};
-
-                        for (int l=0; l < npop; ++l){   
-                            f_tgt[l] = calculate_feq(l, rho_bb, vel_tgt, theta, corr);
-                            g_tgt[l] = calculate_geq(l, rhoe, eq_heat_flux, eq_R_tensor, theta);
-
-                            #ifdef MULTICOMP
-                            for(size_t a = 0; a < nSpecies; ++a){
-                                theta = units.energy_mass(gas->RT() / gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
-                                fa_tgt[a][l] = calculate_feq(l, rho_bb*Y_bb[a], vel_tgt, theta, corr);
-                            }
-                            #endif
+                        else{
+                            rho_loc += mixture[i][j][k].f[l];
+                            rhou_loc += mixture[i][j][k].f[l]*cx[l];
+                            rhov_loc += mixture[i][j][k].f[l]*cy[l];
+                            rhow_loc += mixture[i][j][k].f[l]*cz[l];
+                            rhoe_loc += mixture[i][j][k].g[l];
                         }
                     }
+
+                    double vel_loc[3];
+                    vel_loc[0] = rhou_loc / rho_loc;
+                    vel_loc[1] = rhov_loc / rho_loc;
+                    vel_loc[2] = rhow_loc / rho_loc;
+
+                    double internalEnergy=rhoe_loc/rho_loc - 0.5*v_sqr(vel_loc[0], vel_loc[1], vel_loc[2]);
                     
-                    // step 2: calculate f_loc, g_loc, and fa_loc (local distribution function)
-                    if(interface_node == true) {
-                        double rho_loc = 0.0;
-                        double rhou_loc = 0.0;
-                        double rhov_loc = 0.0;
-                        double rhow_loc = 0.0;
-                        double rhoe_loc = 0.0;
-                        #ifdef MULTICOMP
-                            double rhoa_loc[nSpecies] ;
-                            double rhoua_loc[nSpecies] ;
-                            double rhova_loc[nSpecies] ;
-                            double rhowa_loc[nSpecies] ;
-                        #endif
-
-                        for (int l=0; l < npop; ++l){
-                            i_nb = i - cx[l];
-                            j_nb = j - cy[l];
-                            k_nb = k - cz[l];
-
-                            if (mixture[i_nb][j_nb][k_nb].type==TYPE_S){
-                                rho_loc += f_tgt[l];
-                                rhou_loc += f_tgt[l]*cx[l];
-                                rhov_loc += f_tgt[l]*cy[l];
-                                rhow_loc += f_tgt[l]*cz[l];
-                                rhoe_loc += g_tgt[l];
-
-                                #ifdef MULTICOMP
-                                for(size_t a=0; a < nSpecies; ++a){
-                                    rhoa_loc[a] += fa_tgt[a][l];
-                                    rhoua_loc[a] += fa_tgt[a][l]*cx[l];
-                                    rhova_loc[a] += fa_tgt[a][l]*cy[l];
-                                    rhowa_loc[a] += fa_tgt[a][l]*cz[l];
-                                }
-                                #endif
-                            }
-                            else{
-                                rho_loc += mixture[i][j][k].f[l];
-                                rhou_loc += mixture[i][j][k].f[l]*cx[l];
-                                rhov_loc += mixture[i][j][k].f[l]*cy[l];
-                                rhow_loc += mixture[i][j][k].f[l]*cz[l];
-                                rhoe_loc += mixture[i][j][k].g[l];
-
-                                #ifdef MULTICOMP
-                                    for(size_t a=0; a < nSpecies; ++a){
-                                        rhoa_loc[a] += species[a][i][j][k].f[l];
-                                        rhoua_loc[a] += species[a][i][j][k].f[l]*cx[l];
-                                        rhova_loc[a] += species[a][i][j][k].f[l]*cy[l];
-                                        rhowa_loc[a] += species[a][i][j][k].f[l]*cz[l];
-                                    }
-                                #endif
-                            }
-                        }
-
-                        double vel_loc[3];
-                        vel_loc[0] = rhou_loc / rho_loc;
-                        vel_loc[1] = rhov_loc / rho_loc;
-                        vel_loc[2] = rhow_loc / rho_loc;
-
-                        #ifdef MULTICOMP
-                            double vela_loc[nSpecies][3];
-                            for(size_t a=0; a < nSpecies; ++a){
-                                vela_loc[a][0] = rhoua_loc[a] / rhoa_loc[a];
-                                vela_loc[a][1] = rhova_loc[a] / rhoa_loc[a];
-                                vela_loc[a][2] = rhowa_loc[a] / rhoa_loc[a];
-                            }
-                        #endif
+                    #ifndef MULTICOMP
+                        double cv = gas_const / (gamma - 1.0);
+                        double T_loc = internalEnergy / cv;                        
                         
-                        double internalEnergy=rhoe_loc/rho_loc - 0.5*v_sqr(vel_loc[0], vel_loc[1], vel_loc[2]);
-                        
-                        #ifndef MULTICOMP
-                            double cv = gas_const / (gamma - 1.0);
-                            double T_loc = internalEnergy / cv;                        
-                            
-                            double p_loc = rho_loc * gas_const * T_loc;
-                            double theta = gas_const*T_loc;
-                            double cp = cv + gas_const;
-                            double internal_energy = cv * T_loc;
-                            double enthalpy = cp * T_loc; // H = Cp * T = (Cv + 1) * T
-                        #else
-                            int rank = omp_get_thread_num();
-                            auto gas = sols[rank]->thermo();
-                            std::vector <double> Y_loc (gas->nSpecies());
+                    #else
+                        int rank = omp_get_thread_num();
+                        auto gas = sols[rank]->thermo();
+                        std::vector <double> Y_loc (gas->nSpecies());
 
-                            for(size_t a = 0; a < nSpecies; ++a){
-                                Y_loc[gas->speciesIndex(speciesName[a])] = rhoa_loc[a] / rho_loc;
-                                std::cout << rhoa_loc[a] / rho_loc << std::endl;
-                            }
-                            gas->setMassFractions(&Y_loc[0]);
-                            gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0 / units.si_rho(rho_loc));
-
-                            double internal_energy = units.energy_mass(gas->intEnergy_mass());
-                            double enthalpy = units.energy_mass(gas->enthalpy_mass());
-
-                            double p_loc = units.p(gas->pressure());
-                            double theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());
-                        #endif
-
-                        double rhoe = rho_loc*(internal_energy + 0.5 * v_sqr(vel_loc[0], vel_loc[1], vel_loc[2]));
-                        double total_enthalpy = enthalpy + 0.5 * v_sqr(vel_loc[0], vel_loc[1], vel_loc[2]);
-                        double eq_heat_flux[3] = {  total_enthalpy*rho_loc*vel_loc[0],
-                                                    total_enthalpy*rho_loc*vel_loc[1],
-                                                    total_enthalpy*rho_loc*vel_loc[2]};
-                        double eq_p_tensor[3][3] = {{0., 0., 0.},    // pressure tensor
-                                                    {0., 0., 0.},
-                                                    {0., 0., 0.}};
-                        double eq_R_tensor[3][3] = {{0., 0., 0.},    // second-order moment of g
-                                                    {0., 0., 0.},
-                                                    {0., 0., 0.}};
-
-                        for(int p=0; p < 3; ++p){
-                            for(int q=0; q < 3; ++q){
-                                eq_p_tensor[p][q] = (p==q) ? p_loc+rho_loc*vel_loc[p]*vel_loc[q] : rho_loc*vel_loc[p]*vel_loc[q]; 
-                                eq_R_tensor[p][q] = total_enthalpy*eq_p_tensor[p][q] + p_loc*vel_loc[p]*vel_loc[q];
-                            }  
+                        for(size_t a = 0; a < nSpecies; ++a){
+                            Y_loc[gas->speciesIndex(speciesName[a])] = rhoa_loc[a] / rho_loc;
+                            std::cout << rhoa_loc[a] / rho_loc << std::endl;
                         }
-                        
-                        double corr[3]= {0, 0, 0};
-                        
-                        for (int l=0; l < npop; ++l){
-                            f_loc[l] = calculate_feq(l, rho_loc, vel_loc, theta, corr);
-                            g_loc[l] = calculate_geq(l, rhoe, eq_heat_flux, eq_R_tensor, theta);
+                        gas->setMassFractions(&Y_loc[0]);
+                        gas->setState_UV(units.si_energy_mass(internalEnergy), 1.0 / units.si_rho(rho_loc));
 
-                            // #ifdef MULTICOMP
-                            // for(int a = 0; a < nSpecies; ++a)
-                            // {
-                            //     theta = units.energy_mass(gas->RT() / gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
-                            //     fa_loc[a][l] = calculate_feq(l, rhoa_loc[a], vela_loc[a], theta, corr);
-                            // }
-                            // #endif
+                        double T_loc = gas->temperature();
+                    #endif
+
+                    calculate_feq_geq(f_loc, g_loc, rho_bb, vel_loc, T_loc);
+
+                    for (int l=0; l < npop; ++l){
+                        i_nb = i - cx[l];
+                        j_nb = j - cy[l];
+                        k_nb = k - cz[l];
+
+                        if (mixture[i_nb][j_nb][k_nb].type==TYPE_S){
+                            mixture[i][j][k].f[l] = 2*f_tgt[l] - f_loc[l];
+                            mixture[i][j][k].g[l] = 2*g_tgt[l] - g_loc[l];
                         }
-
-                        for (int l=0; l < npop; ++l){
-                            i_nb = i - cx[l];
-                            j_nb = j - cy[l];
-                            k_nb = k - cz[l];
-
-                            if (mixture[i_nb][j_nb][k_nb].type==TYPE_S){
-                                mixture[i][j][k].f[l] = 2*f_tgt[l] - f_loc[l];
-                                mixture[i][j][k].g[l] = 2*g_tgt[l] - g_loc[l];
-
-                                // #ifdef MULTICOMP
-                                // for(int a = 0; a < nSpecies; ++a)
-                                //     species[a][i][j][k].f[l] = 2*fa_tgt[a][l] - fa_loc[a][l];
-                                // #endif
-                            }
-                            else{
-                                mixture[i][j][k].f[l] = f_tgt[l] + mixture[i][j][k].f[l] - f_loc[l];
-                                mixture[i][j][k].g[l] = g_tgt[l] + mixture[i][j][k].g[l] - g_loc[l];
-
-                                // #ifdef MULTICOMP
-                                // for(int a = 0; a < nSpecies; ++a)
-                                //     species[a][i][j][k].f[l] = fa_tgt[a][l] + species[a][i][j][k].f[l] - fa_loc[a][l];
-                                // #endif
-                            }
+                        else{
+                            mixture[i][j][k].f[l] = f_tgt[l] + mixture[i][j][k].f[l] - f_loc[l];
+                            mixture[i][j][k].g[l] = g_tgt[l] + mixture[i][j][k].g[l] - g_loc[l];
                         }
-                    }
+                    }                   
 
                 } 
             }
@@ -973,251 +710,204 @@ void LBM::Streaming(){
     }
 }
 
+
+
+                   
+
+
 #ifdef MULTICOMP
-void LBM::Collide_Species(){
+void LBM::FD_species()
+{   
     #ifdef PARALLEL 
     #pragma omp parallel for schedule(static, 1) 
     #endif
     for(int i = 0; i < Nx ; ++i){
         for(int j = 0; j < Ny; ++j){
             for(int k = 0; k < Nz; ++k){    
-                if (mixture[i][j][k].type == TYPE_F || mixture[i][j][k].type == TYPE_E){   
-                    double mass_frac[nSpecies];         
-                    double tau_ab[nSpecies][nSpecies];
-                    double D_ab[nSpecies][nSpecies];
-                    double invtau_a[nSpecies];
-                    double lambda[nSpecies];
-                    double beta[nSpecies];
-                    double mmass[nSpecies]; 
-                    Eigen::SparseMatrix<double> matrix_A(nSpecies, nSpecies);
-                    Eigen::VectorXd vector_u(nSpecies);
-                    Eigen::VectorXd vector_v(nSpecies);
-                    Eigen::VectorXd vector_w(nSpecies);
-                    Eigen::VectorXd du(nSpecies);
-                    Eigen::VectorXd dv(nSpecies);
-                    Eigen::VectorXd dw(nSpecies);
-
+                if (mixture[i][j][k].type == TYPE_F){
                     int rank = omp_get_thread_num();
                     auto gas = sols[rank]->thermo();               
                     std::vector<double> Y (gas->nSpecies());
                     for(size_t a = 0; a < nSpecies; ++a) Y[gas->speciesIndex(speciesName[a])] = species[a][i][j][k].rho / mixture[i][j][k].rho;
                     gas->setMassFractions(&Y[0]);
                     gas->setState_TD(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho));
-                    
-                    for(size_t a = 0; a < nSpecies; ++a) {
-                        mass_frac[a] = species[a][i][j][k].rho / mixture[i][j][k].rho;
-                        mmass[a] = gas->molecularWeight(gas->speciesIndex(speciesName[a]));
-                    }
-
-                    double mix_mmass = gas->meanMolecularWeight();
-                    double theta = gas->RT(); // universal_gas_const * temp
-
-                    int ld = gas->nSpecies();
-                    std::vector<double> d(ld * ld);
                     auto trans = sols[rank]->transport();
-                    trans->getBinaryDiffCoeffs(ld, &d[0]);
-
-                    for(size_t a = 0; a < nSpecies; ++a){                       
-                        for(size_t b = 0; b < nSpecies; ++b){
-                            // get diffusion coefficient
-                            D_ab[a][b] =   d[ld*gas->speciesIndex(speciesName[b]) + gas->speciesIndex(speciesName[a])] ;
-                            // std::cout << "D_ab " << gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << D_ab[a][b] << std::endl;
-                            
-                            tau_ab[a][b] = units.t( (mmass[a]*mmass[b]/(mix_mmass*theta)) * D_ab[a][b] );
-                            // std::cout << " tau_ " <<  gas->speciesName(gas->speciesIndex(speciesName[a])) << "-" << gas->speciesName(gas->speciesIndex(speciesName[b])) << " : " << tau_ab[a][b] << std::endl;
-                        }
-                    }
                     
-                    for(size_t a = 0; a < nSpecies; ++a){    
-                        invtau_a[a] = 0.0;
-                        for(size_t b = 0; b < nSpecies; ++b){                                
-                            if (a != b) invtau_a[a] += mass_frac[b] / tau_ab[a][b];  
-                        }
-                    }
+                    std::vector<double> delT(ndim);
+                    delT[0] = FD_limiterVanleer(units.si_temp(mixture[i-1][j][k].temp), units.si_temp(mixture[i][j][k].temp), units.si_temp(mixture[i+1][j][k].temp), dx);
+                    delT[1] = FD_limiterVanleer(units.si_temp(mixture[i][j-1][k].temp), units.si_temp(mixture[i][j][k].temp), units.si_temp(mixture[i][j+1][k].temp), dx);
+                    delT[2] = FD_limiterVanleer(units.si_temp(mixture[i][j][k-1].temp), units.si_temp(mixture[i][j][k].temp), units.si_temp(mixture[i][j][k+1].temp), dx);
+                    
+                    std::vector<double> delX(ndim*nSpecies);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delX[a]              = FD_limiterVanleer(species[a][i-1][j][k].X, species[a][i][j][k].X, species[a][i+1][j][k].X, dx);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delX[nSpecies + a]   = FD_limiterVanleer(species[a][i][j-1][k].X, species[a][i][j][k].X, species[a][i][j+1][k].X, dy);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delX[2*nSpecies + a] = FD_limiterVanleer(species[a][i][j][k-1].X, species[a][i][j][k].X, species[a][i][j][k+1].X, dz);
+                    
+                    std::vector<double> delP(ndim*nSpecies);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delP[a]                 = FD_limiterVanleer(mixture[i-1][j][k].p, mixture[i][j][k].p, mixture[i+1][j][k].p, dx);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delP[nSpecies + a]      = FD_limiterVanleer(mixture[i][j-1][k].p, mixture[i][j][k].p, mixture[i][j+1][k].p, dy);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        delP[2*nSpecies + a]    = FD_limiterVanleer(mixture[i][j][k-1].p, mixture[i][j][k].p, mixture[i][j][k+1].p, dz);
 
-                    if(diffModel == 0){  // Stefan-Maxwell Diffusion Model
-                        for(size_t a = 0; a < nSpecies; ++a){
-                            for(size_t b = 0; b < nSpecies; ++b){
-                                if (a == b) matrix_A.insert(a, b) = 1.0 + dt_sim * invtau_a[a] / 2.0;// - dt_sim/2.0*mass_frac[a]/tau_ab[a][b];
-                                else matrix_A.insert(a, b) = - dt_sim / 2.0 * mass_frac[b] / tau_ab[a][b];
-                            }
+                    std::vector<double> diff_force(ndim*nSpecies);
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        diff_force[a]               = delX[a] + (species[a][i][j][k].X - species[a][i][j][k].rho/mixture[i][j][k].rho) * delP[a]/mixture[i][j][k].p;
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        diff_force[nSpecies + a]    = delX[nSpecies+a] + (species[a][i][j][k].X - species[a][i][j][k].rho/mixture[i][j][k].rho) * delP[nSpecies+a]/mixture[i][j][k].p;
+                    for (size_t a = 0; a < nSpecies; ++a)
+                        diff_force[2*nSpecies + a]  = delX[2*nSpecies+a] + (species[a][i][j][k].X - species[a][i][j][k].rho/mixture[i][j][k].rho) * delP[2*nSpecies+a]/mixture[i][j][k].p;
 
-                            vector_u(a) = species[a][i][j][k].u - mixture[i][j][k].u;
-                            vector_v(a) = species[a][i][j][k].v - mixture[i][j][k].v;
-                            vector_w(a) = species[a][i][j][k].w - mixture[i][j][k].w;
+                    std::vector<double> thermal_diff_coeff(gas->nSpecies());
+                    trans->getThermalDiffCoeffs(&thermal_diff_coeff[0]);
 
-                            beta[a] = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
-                        }  
-                        
-                        Eigen::SparseLU<Eigen::SparseMatrix<double> > solver;
-                        solver.analyzePattern(matrix_A);
-                        solver.factorize(matrix_A);                
-                        solver.compute(matrix_A);
+                    if (diffModel == 0){
+                        std::vector<double> multi_diff_coeff(gas->nSpecies()*gas->nSpecies());
+                        trans->getMultiDiffCoeffs(gas->nSpecies(), &multi_diff_coeff[0]);
 
-                        du = solver.solve(vector_u);
-                        dv = solver.solve(vector_v);
-                        dw = solver.solve(vector_w);
+                        double sum[ndim*nSpecies] = {0.0};
 
-                        for(size_t a = 0; a < nSpecies; ++a){
-                            species[a][i][j][k].Vdiff_x = du[a];
-                            species[a][i][j][k].Vdiff_y = dv[a];
-                            species[a][i][j][k].Vdiff_z = dw[a];
-                        }
-                    }
-                    else{   // Mixture-averaged Diffusion Model
-                        double denom = 0.0;
-                        for (size_t b = 0; b < nSpecies; ++b)
-                            denom += mass_frac[b] * invtau_a[b];
-
-                        for (size_t a = 0; a < nSpecies; ++a){                                
-                            lambda[a] = mass_frac[a] * invtau_a[a] / denom;
-                            beta[a] = dt_sim / (2*(1/invtau_a[a]) + dt_sim);
-                        }
-
-                        double betalamda = {0.0};
-                        double betaYu[nSpecies][ndim] = {0.0};
                         for (size_t a = 0; a < nSpecies; ++a){
-                            if (mass_frac[a] == 0.0) continue;
-
-                            betalamda += beta[a] * lambda[a];
-                            for (size_t b = 0; b < nSpecies; ++b){
-                                betaYu[a][0] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].u - mixture[i][j][k].u);
-                                betaYu[a][1] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].v - mixture[i][j][k].v);
-                                betaYu[a][2] += beta[b] * mass_frac[b] / mass_frac[a] * (species[b][i][j][k].w - mixture[i][j][k].w);
-                            }
+                            for (size_t b = 0; b < nSpecies; ++b)
+                                sum[a]              += gas->molecularWeight(gas->speciesIndex(speciesName[b]))*units.nu(multi_diff_coeff[gas->nSpecies()*gas->speciesIndex(speciesName[b])+gas->speciesIndex(speciesName[a])])*diff_force[b];
+                        }
+                        for (size_t a = 0; a < nSpecies; ++a){
+                            for (size_t b = 0; b < nSpecies; ++b)
+                                sum[nSpecies + a]   += gas->molecularWeight(gas->speciesIndex(speciesName[b]))*units.nu(multi_diff_coeff[gas->nSpecies()*gas->speciesIndex(speciesName[b])+gas->speciesIndex(speciesName[a])])*diff_force[nSpecies + b];
+                        }
+                        for (size_t a = 0; a < nSpecies; ++a){
+                            for (size_t b = 0; b < nSpecies; ++b)
+                                sum[2*nSpecies + a] += gas->molecularWeight(gas->speciesIndex(speciesName[b]))*units.nu(multi_diff_coeff[gas->nSpecies()*gas->speciesIndex(speciesName[b])+gas->speciesIndex(speciesName[a])])*diff_force[2*nSpecies + b];
                         }
 
                         for (size_t a = 0; a < nSpecies; ++a){
-                            species[a][i][j][k].Vdiff_x = (1.0 - beta[a]) * (species[a][i][j][k].u - mixture[i][j][k].u) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][0] ;
-                            species[a][i][j][k].Vdiff_y = (1.0 - beta[a]) * (species[a][i][j][k].v - mixture[i][j][k].v) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][1] ;
-                            species[a][i][j][k].Vdiff_z = (1.0 - beta[a]) * (species[a][i][j][k].w - mixture[i][j][k].w) + (1.0 - beta[a]) * lambda[a] / (1.0 - betalamda) * betaYu[a][2] ;
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_x = -1.0/species[a][i][j][k].X/gas->meanMolecularWeight()*sum[a]              - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[0];
+                            else
+                                species[a][i][j][k].Vdiff_x = 0.0;
+                        }
+                        for (size_t a = 0; a < nSpecies; ++a){
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_y = -1.0/species[a][i][j][k].X/gas->meanMolecularWeight()*sum[nSpecies + a]   - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[1];
+                            else
+                                species[a][i][j][k].Vdiff_y = 0.0;
+                        }
+                        for (size_t a = 0; a < nSpecies; ++a){
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_z = -1.0/species[a][i][j][k].X/gas->meanMolecularWeight()*sum[2*nSpecies + a] - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[2];
+                            else
+                                species[a][i][j][k].Vdiff_z = 0.0;
                         }
                     }
+                    else{
+                        std::vector<double> mix_diff_coeff(gas->nSpecies());
+                        trans->getMixDiffCoeffsMole(&mix_diff_coeff[0]);
 
-                    double velocity[3] = {  mixture[i][j][k].u,
-                                            mixture[i][j][k].v, 
-                                            mixture[i][j][k].w};
-
-                    // std::vector <double> w_dot(gas->nSpecies());    // mole density rate [kmol/m3/s]
-                    // auto kinetics = sols[rank]->kinetics();
-// 
-                    // size_t p = 0;
-                    // double R_a[gas->nSpecies()] = {0.0};
-                    // double rho_a[gas->nSpecies()] = {0.0};
-                    // do{
-                        // kinetics->getNetProductionRates(&w_dot[0]); 
-                        // for (int a = 0; a < (int) gas->nSpecies(); ++a){                            
-                            // if (w_dot[a] == 0.0)  // Check rate == 0, no reaction take place
-                                // continue;
-// 
-                            // #pragma omp critical
-                            // { 
-                                // bool new_species = true;
-                                // for (size_t b = 0; b < nSpecies; ++b){
-                                    // if(gas->speciesName(a) == speciesName[b]){
-                                        // new_species = false;
-                                        // break;
-                                    // }
-                                // }
-// 
-                                // if (new_species){   // adding product to the LBM variables
-                                    // speciesName.push_back(gas->speciesName(a));
-                                    // nSpecies++;
-// 
-                                    // allocate memory for new species
-                                    // this->species.resize(nSpecies);
-                                    // this->species[nSpecies-1] = new SPECIES **[this->Nx];
-                                    // for (int i = 0; i < this->Nx; ++i){
-                                        // this->species[nSpecies-1][i] = new SPECIES *[this->Ny];
-                                        // for (int j = 0; j < this->Ny; ++j){
-                                            // this->species[nSpecies-1][i][j] = new SPECIES [this->Nz];
-                                        // }
-                                    // }                            
-                                // } 
-                            // }
-// 
-                            // size_t idx_species = 0;
-                            // for (size_t b = 0; b < nSpecies; ++b){
-                                // if(gas->speciesName(a) == speciesName[b]){
-                                    // idx_species = b;
-                                    // break;
-                                // }
-                            // }
-                            // 
-                            // double rho_dot = units.rho_dot(w_dot[a] * gas->molecularWeight(a));
-                            // R_a[idx_species] += rho_dot;
-                            // rho_a[idx_species] += dt_sim/2.0 * rho_dot;
-                        // }
-// 
-                        // for(size_t a = 0; a < nSpecies; ++a) Y[gas->speciesIndex(speciesName[a])] = (species[a][i][j][k].rho+rho_a[a]) / mixture[i][j][k].rho;
-                        // gas->setState_TD(units.si_temp(mixture[i][j][k].temp), units.si_rho(mixture[i][j][k].rho));
-                        // gas->setMassFractions(&Y[0]);
-                        // p++;
-                    // }while(p < 2);
-                    
-                    // for(size_t a = 0; a < nSpecies; ++a) 
-                    //     R_a[a] = dt_sim/2.0 * R_a[a];
-                    
-
-                    std::vector<double> mu_a(gas->nSpecies());
-                    trans->getSpeciesViscosities(&mu_a[0]);
-                    double omega[nSpecies] = {0.0};
-                    double corr[nSpecies][3] = {0.0};
-
-                    for(size_t a = 0; a < nSpecies; ++a){
-                        omega[a] =  2*species[a][i][j][k].X*mixture[i][j][k].p*dt_sim / (species[a][i][j][k].X*mixture[i][j][k].p*dt_sim + 2*units.mu(mu_a[a]));
-                        
-                        double delQdevx = FD_limiterVanleer( species[a][i+1][j][k].rho*species[a][i+1][j][k].u*(1-3*gas_const*mixture[i+1][j][k].temp)-species[a][i+1][j][k].rho*cb(species[a][i+1][j][k].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i-1][j][k].rho*species[a][i-1][j][k].u*(1-3*gas_const*mixture[i-1][j][k].temp)-species[a][i-1][j][k].rho*cb(species[a][i-1][j][k].u), dx) ;
-                        double delQdevy = FD_limiterVanleer( species[a][i][j+1][k].rho*species[a][i][j+1][k].u*(1-3*gas_const*mixture[i][j+1][k].temp)-species[a][i][j+1][k].rho*cb(species[a][i][j+1][k].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i][j-1][k].rho*species[a][i][j-1][k].u*(1-3*gas_const*mixture[i][j-1][k].temp)-species[a][i][j-1][k].rho*cb(species[a][i][j-1][k].u), dy) ;
-                        double delQdevz = FD_limiterVanleer( species[a][i][j][k+1].rho*species[a][i][j][k+1].u*(1-3*gas_const*mixture[i][j][k+1].temp)-species[a][i][j][k+1].rho*cb(species[a][i][j][k+1].u), species[a][i][j][k].rho*species[a][i][j][k].u*(1-3*gas_const*mixture[i][j][k].temp)-species[a][i][j][k].rho*cb(species[a][i][j][k].u), species[a][i][j][k-1].rho*species[a][i][j][k-1].u*(1-3*gas_const*mixture[i][j][k-1].temp)-species[a][i][j][k-1].rho*cb(species[a][i][j][k-1].u), dz) ;
-                    
-                        corr[a][0] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevx;
-                        corr[a][1] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevy;
-                        corr[a][2] = dt_sim*(2.0-omega[a])/(2.0*species[a][i][j][k].rho*omega[a])*delQdevz;
+                        for (size_t a = 0; a < nSpecies; ++a)
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_x = -1.0/species[a][i][j][k].X*units.nu(mix_diff_coeff[gas->speciesIndex(speciesName[a])])*diff_force[a] - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[0];
+                            else
+                                species[a][i][j][k].Vdiff_x = 0.0;
+                        for (size_t a = 0; a < nSpecies; ++a)
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_y = -1.0/species[a][i][j][k].X*units.nu(mix_diff_coeff[gas->speciesIndex(speciesName[a])])*diff_force[nSpecies+a] - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[1];
+                            else
+                                species[a][i][j][k].Vdiff_y = 0.0;
+                        for (size_t a = 0; a < nSpecies; ++a)
+                            if (species[a][i][j][k].X >= 1e-20)
+                                species[a][i][j][k].Vdiff_z = -1.0/species[a][i][j][k].X*units.nu(mix_diff_coeff[gas->speciesIndex(speciesName[a])])*diff_force[2*nSpecies+a] - 1.0/mixture[i][j][k].temp*units.mu(thermal_diff_coeff[gas->speciesIndex(speciesName[a])])/(species[a][i][j][k].rho)*delT[2];
+                            else
+                                species[a][i][j][k].Vdiff_z = 0.0;
                     }
 
-                    theta = units.energy_mass(gas->RT()/gas->meanMolecularWeight());                    
+                    double Vcorr_x = 0.0;
+                    double Vcorr_y = 0.0;
+                    double Vcorr_z = 0.0;
+                    for (size_t a = 0; a < nSpecies; ++a){
+                        Vcorr_x += species[a][i][j][k].rho / mixture[i][j][k].rho * species[a][i][j][k].Vdiff_x;
+                        Vcorr_y += species[a][i][j][k].rho / mixture[i][j][k].rho * species[a][i][j][k].Vdiff_y;
+                        Vcorr_z += species[a][i][j][k].rho / mixture[i][j][k].rho * species[a][i][j][k].Vdiff_z;
+                    }
 
-                    for (int l = 0; l < npop; ++l){
-                        double feq[nSpecies], fstr[nSpecies];
+                    for (size_t a = 0; a < nSpecies; ++a){
+                        species[a][i][j][k].Vdiff_x -= Vcorr_x;
+                        species[a][i][j][k].Vdiff_y -= Vcorr_y;
+                        species[a][i][j][k].Vdiff_z -= Vcorr_z;
+                    }
+                    std::cout << i << " | " << species[0][i][j][k].Vdiff_x << " | " << species[1][i][j][k].Vdiff_x << std::endl;
+                }
+            }
+        }
+    }
 
-                        // double feqM = calculate_feq(l, 1.0, velocity, theta, corr);
+    #ifdef PARALLEL 
+        #pragma omp parallel for schedule(static, 1) 
+    #endif
+    for(int i = 0; i < Nx ; ++i){
+        for(int j = 0; j < Ny; ++j){
+            for(int k = 0; k < Nz; ++k){    
+                if (mixture[i][j][k].type == TYPE_F){    
+                    for (size_t a = 0; a < nSpecies; ++a){
+                        double conv_x = FD_limiterVanleer(species[a][i-1][j][k].rho*(mixture[i-1][j][k].u + species[a][i-1][j][k].Vdiff_x) , species[a][i][j][k].rho*(mixture[i][j][k].u + species[a][i][j][k].Vdiff_x), species[a][i+1][j][k].rho*(mixture[i+1][j][k].u + species[a][i+1][j][k].Vdiff_x), dx );
+                        double conv_y = FD_limiterVanleer(species[a][i][j-1][k].rho*(mixture[i][j-1][k].v + species[a][i][j-1][k].Vdiff_y) , species[a][i][j][k].rho*(mixture[i][j][k].v + species[a][i][j][k].Vdiff_y), species[a][i][j+1][k].rho*(mixture[i][j+1][k].v + species[a][i][j+1][k].Vdiff_y), dy );
+                        double conv_z = FD_limiterVanleer(species[a][i][j][k-1].rho*(mixture[i][j][k-1].w + species[a][i][j][k-1].Vdiff_z) , species[a][i][j][k].rho*(mixture[i][j][k].w + species[a][i][j][k].Vdiff_z), species[a][i][j][k+1].rho*(mixture[i][j][k+1].w + species[a][i][j][k+1].Vdiff_z), dz );
 
-                        for (size_t a = 0; a < nSpecies; ++a){
-                            double velocity_spec[3] = { velocity[0] + species[a][i][j][k].Vdiff_x,
-                                                        velocity[1] + species[a][i][j][k].Vdiff_y, 
-                                                        velocity[2] + species[a][i][j][k].Vdiff_z};
+                        // std::cout << i << " | " << conv_x << " | " << conv_y << " | " << conv_z << std::endl;
+                        species[a][i][j][k].rho_n = species[a][i][j][k].rho - dt_sim * ( conv_x + conv_y + conv_z );           
+                    }
 
-                            theta = units.energy_mass( gas->RT()/gas->molecularWeight(gas->speciesIndex(speciesName[a])) );
-                            feq[a] = calculate_feq(l, species[a][i][j][k].rho, velocity, theta, corr[a]);
-                            fstr[a] = calculate_feq(l, species[a][i][j][k].rho, velocity_spec, theta, corr[a]);
-                            // freact[a] = calculate_feq(l, species[a][i][j][k].rho_dot, velocity, theta, corr);
-                        }
-
-                        for (size_t a = 0; a < nSpecies; ++a){
-                            double F_a = 0.0;
-
-                            if (diffModel == 0){ // Stefan-Maxwell Diffusion
-                                for(size_t b = 0; b < nSpecies; ++b)
-                                    if (a != b) F_a += mass_frac[a]/tau_ab[a][b]*(feq[b]-fstr[b]);
-                            }
-                            else{    // Mixture-averaged Diffusion
-                                for(size_t b = 0; b < nSpecies; ++b)
-                                    if (a != b) F_a += lambda[a]*invtau_a[b]*(feq[b]-fstr[b]);  
-                            }                              
-
-                            // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta[a]*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + dt_sim*freact[a];
-                            // species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + 2.0*beta[a]*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a + feqM*R_a[a];
-                            species[a][i][j][k].fpc[l] = species[a][i][j][k].f[l] + (omega[a]+2.0*beta[a])*(feq[a]-species[a][i][j][k].f[l]) + dt_sim*(beta[a]-1.0)*F_a;
-                        }
-                    }   
                 }
             }
         }
     }
 }
-
 #endif
+
+void LBM::dirSlip(int l, int i, int j, int k, int &lp, int &ip, int &jp, int &kp)
+{
+    int i_nb, j_nb, k_nb;
+    i_nb = i - cx[l];
+    j_nb = j - cy[l];
+    k_nb = k - cz[l];
+
+    ip = i_nb;
+    jp = j_nb;
+    kp = k_nb;
+
+    bool i_chk, j_chk, k_chk = false;
+    if (mixture[i_nb][j][k].type==TYPE_FS)
+        i_chk = true;
+    if (mixture[i][j_nb][k].type==TYPE_FS)
+        j_chk = true;
+    if (mixture[i][j][k_nb].type==TYPE_FS)
+        k_chk = true;
+
+    double cxp, cyp, czp = 0.0;
+    if (i_chk == true){
+        cxp = -1.0*cx[l];
+        ip = i;
+    }
+    if (j_chk == true){
+        cyp = -1.0*cy[l];
+        jp = j;
+    }
+    if (k_chk == true){
+        czp = -1.0*cz[l];
+        kp = k;
+    } 
+    
+    for(size_t a = 0; a < npop; ++a){
+        if (cxp == cx[a] && cyp == cy[a] && czp == cz[a]){
+            lp = a;
+            break;
+        }
+    }
+
+}
 
 void LBM::fill_BC()
 {
@@ -1233,59 +923,71 @@ void LBM::fill_BC()
                     int k_pb = k + 1;
 
                     // Adiabatic Boundary Condition
-                    if(mixture[i_nb][j][k].type == TYPE_A){
+                    if(mixture[i_nb][j][k].type == TYPE_A || mixture[i_nb][j][k].type == TYPE_FS){
                         mixture[i_nb][j][k].rho = mixture[i][j][k].rho;
                         mixture[i_nb][j][k].u   = mixture[i][j][k].u;
                         mixture[i_nb][j][k].v   = mixture[i][j][k].v;
                         mixture[i_nb][j][k].w   = mixture[i][j][k].w;
                         mixture[i_nb][j][k].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i_nb][j][k].rho = species[a][i][j][k].rho;
+                        #endif
                     }
-                    if(mixture[i_pb][j][k].type == TYPE_A){
+                    if(mixture[i_pb][j][k].type == TYPE_A || mixture[i_pb][j][k].type == TYPE_FS){
                         mixture[i_pb][j][k].rho = mixture[i][j][k].rho;
                         mixture[i_pb][j][k].u   = mixture[i][j][k].u;
                         mixture[i_pb][j][k].v   = mixture[i][j][k].v;
                         mixture[i_pb][j][k].w   = mixture[i][j][k].w;
                         mixture[i_pb][j][k].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i_pb][j][k].rho = species[a][i][j][k].rho;
+                        #endif
                     }
-                    if(mixture[i][j_nb][k].type == TYPE_A){
+                    if(mixture[i][j_nb][k].type == TYPE_A || mixture[i][j_nb][k].type == TYPE_FS){
                         mixture[i][j_nb][k].rho = mixture[i][j][k].rho;
                         mixture[i][j_nb][k].u   = mixture[i][j][k].u;
                         mixture[i][j_nb][k].v   = mixture[i][j][k].v;
                         mixture[i][j_nb][k].w   = mixture[i][j][k].w;
                         mixture[i][j_nb][k].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j_nb][k].rho = species[a][i][j][k].rho;
+                        #endif
                     }
-                    if(mixture[i][j_pb][k].type == TYPE_A){
+                    if(mixture[i][j_pb][k].type == TYPE_A || mixture[i][j_pb][k].type == TYPE_FS){
                         mixture[i][j_pb][k].rho = mixture[i][j][k].rho;
                         mixture[i][j_pb][k].u   = mixture[i][j][k].u;
                         mixture[i][j_pb][k].v   = mixture[i][j][k].v;
                         mixture[i][j_pb][k].w   = mixture[i][j][k].w;
                         mixture[i][j_pb][k].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j_pb][k].rho = species[a][i][j][k].rho;
+                        #endif
                     }
-                    if(mixture[i][j][k_nb].type == TYPE_A){
+                    if(mixture[i][j][k_nb].type == TYPE_A || mixture[i][j][k_nb].type == TYPE_FS){
                         mixture[i][j][k_nb].rho = mixture[i][j][k].rho;
                         mixture[i][j][k_nb].u   = mixture[i][j][k].u;
                         mixture[i][j][k_nb].v   = mixture[i][j][k].v;
                         mixture[i][j][k_nb].w   = mixture[i][j][k].w;
                         mixture[i][j][k_nb].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j][k_nb].rho = species[a][i][j][k].rho;
+                        #endif
                     }
-                    if(mixture[i][j][k_pb].type == TYPE_A){
+                    if(mixture[i][j][k_pb].type == TYPE_A || mixture[i][j][k_pb].type == TYPE_FS){
                         mixture[i][j][k_pb].rho = mixture[i][j][k].rho;
                         mixture[i][j][k_pb].u   = mixture[i][j][k].u;
                         mixture[i][j][k_pb].v   = mixture[i][j][k].v;
                         mixture[i][j][k_pb].w   = mixture[i][j][k].w;
                         mixture[i][j][k_pb].temp= mixture[i][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j][k_pb].rho = species[a][i][j][k].rho;
+                        #endif
                     }
                     
                     // Periodic Boundary Condition 
@@ -1295,8 +997,10 @@ void LBM::fill_BC()
                         mixture[i_nb][j][k].v   = mixture[Nx-2][j][k].v;
                         mixture[i_nb][j][k].w   = mixture[Nx-2][j][k].w;
                         mixture[i_nb][j][k].temp= mixture[Nx-2][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i_nb][j][k].rho = species[a][Nx-2][j][k].rho;
+                        #endif
                     }
                     if(mixture[i_pb][j][k].type == TYPE_P){
                         mixture[i_pb][j][k].rho = mixture[1][j][k].rho;
@@ -1304,8 +1008,10 @@ void LBM::fill_BC()
                         mixture[i_pb][j][k].v   = mixture[1][j][k].v;
                         mixture[i_pb][j][k].w   = mixture[1][j][k].w;
                         mixture[i_pb][j][k].temp= mixture[1][j][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i_pb][j][k].rho = species[a][1][j][k].rho;
+                        #endif
                     }
                     if(mixture[i][j_nb][k].type == TYPE_P){
                         mixture[i][j_nb][k].rho = mixture[i][Ny-2][k].rho;
@@ -1313,8 +1019,10 @@ void LBM::fill_BC()
                         mixture[i][j_nb][k].v   = mixture[i][Ny-2][k].v;
                         mixture[i][j_nb][k].w   = mixture[i][Ny-2][k].w;
                         mixture[i][j_nb][k].temp= mixture[i][Ny-2][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j_nb][k].rho = species[a][i][Ny-2][k].rho;
+                        #endif
                     }
                     if(mixture[i][j_pb][k].type == TYPE_P){
                         mixture[i][j_pb][k].rho = mixture[i][1][k].rho;
@@ -1322,8 +1030,10 @@ void LBM::fill_BC()
                         mixture[i][j_pb][k].v   = mixture[i][1][k].v;
                         mixture[i][j_pb][k].w   = mixture[i][1][k].w;
                         mixture[i][j_pb][k].temp= mixture[i][1][k].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j_pb][k].rho = species[a][i][1][k].rho;
+                        #endif
                     }
                     if(mixture[i][j][k_nb].type == TYPE_P){
                         mixture[i][j][k_nb].rho = mixture[i][j][Nz-2].rho;
@@ -1331,8 +1041,10 @@ void LBM::fill_BC()
                         mixture[i][j][k_nb].v   = mixture[i][j][Nz-2].v;
                         mixture[i][j][k_nb].w   = mixture[i][j][Nz-2].w;
                         mixture[i][j][k_nb].temp= mixture[i][j][Nz-2].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j][k_nb].rho = species[a][i][j][Nz-2].rho;
+                        #endif
                     }
                     if(mixture[i][j][k_pb].type == TYPE_P){
                         mixture[i][j][k_pb].rho = mixture[i][j][1].rho;
@@ -1340,8 +1052,10 @@ void LBM::fill_BC()
                         mixture[i][j][k_pb].v   = mixture[i][j][1].v;
                         mixture[i][j][k_pb].w   = mixture[i][j][1].w;
                         mixture[i][j][k_pb].temp= mixture[i][j][1].temp;
+                        #ifdef MULTICOMP
                         for(size_t a = 0; a < nSpecies; ++a)
                             species[a][i][j][k_pb].rho = species[a][i][j][1].rho;
+                        #endif
                     }
 
 
@@ -1374,11 +1088,7 @@ void LBM::run(int nstep, int tout)
     for (step = 1; step <= nstep; ++step)
     {
         #ifdef MULTICOMP
-            #ifndef FD
-            Collide_Species();  // collide species distribution function
-            #else
-            FD_species();       // finite difference for solving conservation of species
-            #endif
+        FD_species();       // finite difference for solving conservation of species
         std::cout << "  Species Collision Done" << std::endl;
         #endif
 

@@ -10,6 +10,8 @@ int main(int argc, char** argv)
 {
     #ifdef PARALLEL
         omp_set_num_threads(NUM_THREADS);
+    #else
+        omp_set_num_threads(1);
     #endif
 
     printLogo();

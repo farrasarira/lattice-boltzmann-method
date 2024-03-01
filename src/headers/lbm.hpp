@@ -86,17 +86,8 @@
             double Vdiff_z = 0.0;       // diffusion velocity in z direction   
 
             double delYx, delYy, delYz;      
-            
-            #ifndef FD
-                double f[npop] = {0.0};     // distribution function
-                double fpc[npop] = {0.0};   // distribution function post collistion  
-                double u = 0.0;     // velocity in x-direction
-                double v = 0.0;     // velocity in y-direction
-                double w = 0.0;     // velocity in z-direction
-            #elif defined FD
-                double rho_n = 0.0;        // mixture density * mass fraction
-            #endif
-
+    
+            double rho_n = 0.0;        // mixture density * mass fraction
     };
 
     class LBM
@@ -114,7 +105,7 @@
 
             double nu = 0.001;      // kinematic viscosity
             double gas_const = 1.0; // gas constant
-            double prtl = 0.5;      // prantdl number
+            double prtl = 0.7;      // prantdl number
             double gamma = 1.4;     // gamma (Cp/Cv)
 
             size_t nSpecies = 0;
@@ -138,14 +129,17 @@
             // calculate equlibrium density
             double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
             double calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R_tensor[][3], double theta);
+            void calculate_feq_geq(double f_tgt[], double g_tgt[], double rho_bb, double vel_tgt[], double temp_tgt);
 
             // initialize
             void Init();    // initialize equilibrium  
 
             // collision operator
             void Collide(); // BGK collision
-            void Collide_Species();
+            void FD_species();
+            
             void fill_BC();
+            void dirSlip(int l, int i, int j, int k, int &lp, int &ip, int &jp, int &kp);
                         
             // stream
             void Streaming();   
