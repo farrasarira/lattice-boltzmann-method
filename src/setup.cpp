@@ -565,8 +565,8 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
                     // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
                     // lb.species[2][i][j][k].X = smooth(0.300, 0.515, i, 0.5*Nx, 0.03);
 
-                    lb.species[0][i][j][k].X = smooth(1.0, 0.0, i, 0.5*Nx, 0.3);
-                    lb.species[1][i][j][k].X = smooth(0.0, 1.0, i, 0.5*Nx, 0.3);
+                    lb.species[0][i][j][k].X = smooth(1.0, 0.1, i, 0.5*Nx, 0.3);
+                    lb.species[1][i][j][k].X = smooth(0.1, 1.0, i, 0.5*Nx, 0.3);
 
                     
                     lb.mixture[i][j][k].p = smooth(1*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
@@ -581,7 +581,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         }
     }
 
-    lb.run(40000,1000);
+    lb.run(400000,1000);
 }
 
 
@@ -916,6 +916,8 @@ void main_setup() // 2D Couette Flow -------------------------------------------
     lb.run(200000,10000);
 }
 
+
+
 #elif defined COUETTE_FLOW_MULTICOMP
 void main_setup() // 2D Couette flow (multicomponent)  --------------------------------------------------------
 {
@@ -1067,7 +1069,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
     units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
     // std::vector<std::string> species = { "H2", "Ar" , "CH4"};
-    std::vector<std::string> species = { "AR" , "N2"};
+    std::vector<std::string> species = { "H2" , "N2", "O2", "H2O"};
     
     LBM lb(NX, NY, NZ, species);
     // lb.set_diffusionModel("Stefan-Maxwell");
@@ -1082,38 +1084,50 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         {
             for(int k = 0; k < Nz; ++k)
             {
-                if ( j==0 || j==Ny-1 || k==0 || k==Nz-1) // set periodic boundary condition
-                {
-                    lb.mixture[i][j][k].type = TYPE_P;
-                }
-                
-                if (i==0 || i==Nx-1 )
-                {
-                    lb.mixture[i][j][k].type = TYPE_A;
+                if(j==0 || j==Ny-1){
+                    lb.mixture[i][j][k].type = TYPE_E;
                 }
 
-                if (lb.mixture[i][j][k].type == TYPE_F)
-                {
-                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.7);
-                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.7);
-                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.7);
+                if (i==0 || i==Nx-1){
+                    if(j<0.1*Ny||j>0.9*Ny)  // free-slip boundary
+                        lb.mixture[i][j][k].type = TYPE_FS;
+                    else{    // inlet-flow
+                        lb.mixture[i][j][k].type = TYPE_E;
+                        lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);      
+                        lb.mixture[i][j][k].temp = units.temp(300.0);   
 
-                    // lb.species[0][i][j][k].X = smooth(0.491, 0.300, i, 0.5*Nx, 0.03);
-                    // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
-                    // lb.species[2][i][j][k].X = smooth(0.300, 0.515, i, 0.5*Nx, 0.03);
+                        if (i==0){
+                            lb.mixture[i][j][k].u = units.u(1.0);
+                            lb.species[0][i][j][k].X = 0.10;
+                            lb.species[1][i][j][k].X = 0.85;
+                            lb.species[2][i][j][k].X = 0.00;
+                            lb.species[3][i][j][k].X = 0.05;
+                        }
+                        if (i==Nx-1){
+                            lb.mixture[i][j][k].u =  units.u(1.0);
+                            lb.species[0][i][j][k].X = 0.00;
+                            lb.species[1][i][j][k].X = 0.90;
+                            lb.species[2][i][j][k].X = 0.10;
+                            lb.species[3][i][j][k].X = 0.00;
+                        }
+                    }
+                }
 
-                    lb.species[0][i][j][k].X = smooth(1.0, 0.0, i, 0.5*Nx, 0.3);
-                    lb.species[1][i][j][k].X = smooth(0.0, 1.0, i, 0.5*Nx, 0.3);
+                if(lb.mixture[i][j][k].type = TYPE_F){
+                    lb.species[0][i][j][k].X = 1.0;
+                    lb.species[1][i][j][k].X = 0.0;
+                    lb.species[2][i][j][k].X = 0.0;
+                    lb.species[3][i][j][k].X = 0.0;
 
+                    lb.mixture[i][j][k].p = units.p(Cantera::OneAtm);      
+                    lb.mixture[i][j][k].temp = units.temp(300.0);                  
                     
-                    lb.mixture[i][j][k].p = smooth(1*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
-                    lb.mixture[i][j][k].temp = smooth(units.temp(300.0), units.temp(300.0), i, 0.5*Nx, 0.3);                  
-                  
                     lb.mixture[i][j][k].u = 0.0;
                     lb.mixture[i][j][k].v = 0.0;
                     lb.mixture[i][j][k].w = 0.0;
-                     
                 }
+                    
+                
             }
         }
     }

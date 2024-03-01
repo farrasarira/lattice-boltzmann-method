@@ -55,7 +55,8 @@
         float p(const float si_p) const { return si_p*(m*sq(s))/kg; } // pressure 
         float bin_diff(const float si_bin_diff) const { return si_bin_diff * s / (m*m); } // pressure 
         float diff_coeff(const float si_dif_coeff) const { return si_dif_coeff*s/sq(m); } // diffusion coefficient si_nu = nu*[m^2/s]
-        
+        // float th_diff(const float si_th_diff) const { return si_th_diff * (m*s) / kg; } // thermal diffusion coefficient        
+
         // the following methods convert simulation units into SI units (have to be called after set_m_kg_s(...);)
         float si_x(const int x) const { return (float)x*m; } // length si_x = x*[m]
         float si_x(const float x) const { return x*m; } // length si_x = x*[m]
