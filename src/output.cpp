@@ -12,9 +12,7 @@ void OutputVTK(int &nout, LBM *lbm)
     int Ny = lb.get_Ny();
     int Nz = lb.get_Nz();
 	int dx = lb.get_dx();
-	int nSpecies = lb.get_nSpecies();
-	std::vector<std::string> speciesName = lb.get_speciesName();
-	//std::cout << "nSpecies : " << speciesName[0] << " " << speciesName[1] << " " << speciesName[2] << " "  << std::endl;
+
 	int		i,j,k;
 	char	filename[128];
 	FILE	*fp;
@@ -38,11 +36,6 @@ void OutputVTK(int &nout, LBM *lbm)
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CellType\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Temperature\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Pressure\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);
-	for (int a = 0; a < nSpecies ; ++a) 
-		{fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Mole Fraction %s\" format=\"appended\" offset=\"%ld\" />\n", speciesName[a].c_str(), offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);}
-
-	for (int a = 0; a < nSpecies ; ++a) 
-		{fprintf(fp,"      <DataArray type=\"Float32\" Name=\"Species Velocity %s\" format=\"appended\" offset=\"%ld\" />\n", speciesName[a].c_str(), offset); offset+=4+1*4*(Nx)*(Ny)*(Nz);}
 	fprintf(fp,"    </CellData>\n");
 	fprintf(fp,"    <Coordinates>\n");
 	fprintf(fp,"      <DataArray type=\"Float32\" Name=\"CoordinateX\" format=\"appended\" offset=\"%ld\" />\n",offset); offset+=4+1*4*(Nx+1);
@@ -127,39 +120,6 @@ void OutputVTK(int &nout, LBM *lbm)
 			}
 		}
 	}
-
-	#ifdef MULTICOMP
-	for(int a = 0; a < nSpecies; ++a)
-	{
-		array_size=1*4*(Nx)*(Ny)*(Nz);
-		fwrite(&array_size,sizeof(int),1,fp);
-		for(k=0;k<Nz;k++){
-			for(j=0;j<Ny;j++){
-				for(i=0;i<Nx;i++)
-				{
-					val32=(float)( units.si_rho(lb.species[a][i][j][k].rho) ) ; fwrite(&val32,sizeof(float),1,fp);
-					// val32=(float)( lb.species[a][i][j][k].X ) ; fwrite(&val32,sizeof(float),1,fp);
-				}
-			}
-		}
-	}
-
-	for(int a = 0; a < nSpecies; ++a)
-	{
-		array_size=1*4*(Nx)*(Ny)*(Nz);
-		fwrite(&array_size,sizeof(int),1,fp);
-		for(k=0;k<Nz;k++){
-			for(j=0;j<Ny;j++){
-				for(i=0;i<Nx;i++)
-				{
-					val32=(float) units.si_u(lb.species[a][i][j][k].Vdiff_x) ; fwrite(&val32,sizeof(float),1,fp);
-				}
-			}
-		}
-	}
-
-	
-	#endif
 
 	// Coordinates (vertices)
 	array_size=1*4*(Nx+1);

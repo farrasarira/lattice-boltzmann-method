@@ -118,5 +118,13 @@ double FD_limiterVanleer(double stc_n, double stc_c, double stc_p, double dx)
     return phi * (stc_p - stc_c) / dx;
 }
 
+double FD_limiterVanleer_(double stc_n, double stc_c, double stc_p, double dx)
+{
+    double sL = (stc_c-stc_n)/dx;
+    double sR = (stc_p-stc_c)/dx;
+    return limiterVanleer(sL, sR);
+}
+
+
 
 

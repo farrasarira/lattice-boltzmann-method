@@ -18,8 +18,7 @@
     double FD_limiterMinmod(double stc_n, double stc_c, double stc_p, double dx);
     double FD_limiterVanleer(double stc_n, double stc_c, double stc_p, double dx);
 
-
-
+    double FD_limiterVanleer_(double stc_n, double stc_c, double stc_p, double dx);
 
 
     float smootherstep(float, float, float);

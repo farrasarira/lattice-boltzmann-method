@@ -55,8 +55,8 @@
             short type = TYPE_F;    // type of lattice (FLUID, SOLID, ... see setup for more)
             
             // ###### Momentum Kinetic Equation Parameter ######
-            double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
-            double rho;                 // macroscopic quantity
+            double f[npop], fpc[npop] = {0.0};  // distribution function, distribution function post collistion  
+            double rho = 0.0;                 // macroscopic quantity
             double u = 0.0;          // velocity in x-direction
             double v = 0.0;          // velocity in y-direction
             double w = 0.0;          // velocity in z-direction
@@ -72,22 +72,6 @@
             double energy_flux[3] = {0., 0., 0.}; // heat flux
 
             double dQdevx, dQdevy, dQdevz;
-    };
-
-    class SPECIES
-    {
-        public:
-            // ###### Momentum Kinetic Equation Parameter ######
-            double X = 0.0;             // mole fraction
-            double rho = 0.0;           // density
-            double rho_dot = 0.0;       // rate of formation/destruction during chemical reaction.
-            double Vdiff_x = 0.0;       // diffusion velocity in x direction               
-            double Vdiff_y = 0.0;       // diffusion velocity in y direction       
-            double Vdiff_z = 0.0;       // diffusion velocity in z direction   
-
-            double delYx, delYy, delYz;      
-    
-            double rho_n = 0.0;        // mixture density * mass fraction
     };
 
     class LBM
@@ -107,21 +91,13 @@
             double gas_const = 1.0; // gas constant
             double prtl = 0.7;      // prantdl number
             double gamma = 1.4;     // gamma (Cp/Cv)
-
-            size_t nSpecies = 0;
-            std::vector<std::string> speciesName;
-            size_t diffModel = 1;    // Diffusion Model 
         
         public:
             MIXTURE *** mixture;
-            #ifdef MULTICOMP
-                std::vector<SPECIES***> species;
-            #endif
 
         public:
             // constructor
             LBM(int Nx, int Ny, int Nz, double nu);
-            LBM(int Nx, int Ny, int Nz, std::vector<std::string> species);
 
             // calculate moment
             void calculate_moment();
@@ -129,16 +105,15 @@
             // calculate equlibrium density
             double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
             double calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R_tensor[][3], double theta);
-            void calculate_feq_geq(double f_tgt[], double g_tgt[], double rho_bb, double vel_tgt[], double temp_tgt);
 
             // initialize
             void Init();    // initialize equilibrium  
 
             // collision operator
             void Collide(); // BGK collision
-            void FD_species();
             
             void fill_BC();
+            void fill_FPC();
             void dirSlip(int l, int i, int j, int k, int &lp, int &ip, int &jp, int &kp);
                         
             // stream
@@ -158,21 +133,12 @@
             int get_dy(){return dy;};
             int get_dz(){return dz;};
             double get_nu(){return nu;};
-            int get_nSpecies(){return nSpecies;};
-            std::vector<std::string> get_speciesName(){return speciesName;};
 
             // set private data
             void set_nu(double nu){this->nu = nu;};
             void set_gasconst(double gas_const){this->gas_const = gas_const;};
             void set_prtl(double prtl){this->prtl = prtl;};
             void set_gamma(double gamma){this->gamma = gamma;};
-            void set_diffusionModel(const std::string& model)
-            {
-                if (model == "Stefan-Maxwell") 
-                    this->diffModel = 0;
-                else if (model == "Mixture-Averaged")
-                    this->diffModel = 1;
-            }
     };
 
 #endif
