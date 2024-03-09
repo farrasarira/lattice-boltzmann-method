@@ -19,14 +19,15 @@
     // #define SOD_SHOCK_1D
     // #define SOD_SHOCK
     // #define SOD_SHOCK_SIUNIT
-    // #define TERNARY_DIFFUSION
+    #define TERNARY_DIFFUSION
     // #define SHEAR_LAYER_MULTICOMP
     // #define PERFECTLY_STIRRED_REACTOR_3D_AMMONIA
     // #define PERFECTLY_STIRRED_REACTOR_3D_HYDROGEN
     // #define CONDUCTION_1D
-    #define COUETTE_FLOW
+    // #define COUETTE_FLOW
     // #define COUETTE_FLOW_MULTICOMP
     // #define TAYLOR_GREEN_3D_MULTICOMP
+    // #define COUNTERFLOW_SINGLECOMP
     // #define COUNTERFLOW_NONREACTIVE
 
     
@@ -36,11 +37,11 @@
 
     // ########## Parallel Computation ###############
     // Uncomment 2 lines of code below to utilize parallel computation using OpenMP
-    // #define PARALLEL
-    // #define NUM_THREADS 7
+    #define PARALLEL
+    #define NUM_THREADS 7
 
     // ############### OUTPUT UNIT ###################
-    // #define OUTPUT_SI               // uncomment for SI UNIT, comment for LATTICE UNIT
+    #define OUTPUT_SI               // uncomment for SI UNIT, comment for LATTICE UNIT
 
     // ############### Limiter Type ##################
     #define LIMITER_TYPE limiterVanleer
@@ -66,7 +67,7 @@
     #elif defined TAYLOR_GREEN_2D 
         #define D2Q9
         #define NDIM 2
-    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP || defined PERFECTLY_STIRRED_REACTOR_3D_AMMONIA || defined PERFECTLY_STIRRED_REACTOR_3D_HYDROGEN || defined CYLINDER_2D || defined CONDUCTION_1D || defined BPVT_1 || defined COUETTE_FLOW || defined COUETTE_FLOW_MULTICOMP || defined TAYLOR_GREEN_3D_MULTICOMP || defined COUNTERFLOW_NONREACTIVE
+    #elif defined TAYLOR_GREEN_3D || defined CHANNEL_FLOW_3D || defined CYLINDER_3D || defined VISCOSITY_TEST || defined SOD_SHOCK || defined TERNARY_DIFFUSION || defined SOD_SHOCK_SIUNIT || defined SHEAR_LAYER_MULTICOMP || defined PERFECTLY_STIRRED_REACTOR_3D_AMMONIA || defined PERFECTLY_STIRRED_REACTOR_3D_HYDROGEN || defined CYLINDER_2D || defined CONDUCTION_1D || defined BPVT_1 || defined COUETTE_FLOW || defined COUETTE_FLOW_MULTICOMP || defined TAYLOR_GREEN_3D_MULTICOMP || defined COUNTERFLOW_SINGLECOMP || defined COUNTERFLOW_NONREACTIVE
         #define D3Q27
         #define NDIM 3
     #endif
@@ -77,12 +78,12 @@
 
     // ############## Boundary Condition ###############
     #define TYPE_F 0 // fluid domain
-    #define TYPE_S 1 // (stationary or moving) solid boundary
-    #define TYPE_E 2 // equilibrium boundary (inflow/outflow)
-    #define TYPE_P 3 // periodic boundary
-    #define TYPE_A 4 // Adiabatic No-Slip Wall
-    #define TYPE_FS 5  // Adiabatic Free-Slip Wall
-
+    #define TYPE_P 1 // periodic boundary
+    #define TYPE_S 2 // dirichlet boundary condition
+    #define TYPE_A 3 // Adiabatic No-Slip Wall
+    #define TYPE_FS 4  // Adiabatic Free-Slip Wall
+    #define TYPE_I 5 // Inflow boundary condition
+    #define TYPE_O 6 // Outflow boundary condition (Neumann Boundary Condition | Zero gradient for all variables)
     
 
 #endif

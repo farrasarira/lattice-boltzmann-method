@@ -12,7 +12,7 @@ Units_Conv units;
 void main_setup() // 2D Flow over cylinder --------------------------------------------------------
 {
     double RE = 1000;
-    LBM lb(1000, 500, 5, 0.00001);
+    LBM lb(1000, 500, 1, 0.0025);
     int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
     double nu = lb.get_nu();
 
@@ -20,7 +20,6 @@ void main_setup() // 2D Flow over cylinder -------------------------------------
     cylinder_generator(lb, D);
 
     double u_max = RE*nu/D;    // [Velocity in Lattice Unit]
-    double rho0 = 1.0;      // [Density in Lattice Unit]
     double T0 = 0.03;       // [Temperature in Lattice Unit]
 
     // double si_u_max = 0.05; // [m/s]
@@ -51,28 +50,37 @@ void main_setup() // 2D Flow over cylinder -------------------------------------
             {
                 if (j == 0 || j == Ny-1) 
                 {
-                    lb.mixture[i][j][k].type = TYPE_S;  // Solid Boundary in upper and lower side
+                    lb.mixture[i][j][k].type = TYPE_A;  // Solid Boundary in upper and lower side
                 }
-                if (i == 0 || i == Nx-1)
+                if (i == 0 )
                 {
-                    lb.mixture[i][j][k].type = TYPE_E;  // Equilibrium inlet and outlet
+                    lb.mixture[i][j][k].type = TYPE_I;  // Equilibrium inlet and outlet
+                    lb.mixture[i][j][k].p = T0;
+                    lb.mixture[i][j][k].temp = T0;
+                    lb.mixture[i][j][k].u = u_max;
                 }
+
+                if (i == Nx-1)
+                {
+                    lb.mixture[i][j][k].type = TYPE_O;
+                    lb.mixture[i][j][k].p = T0;
+                    lb.mixture[i][j][k].temp = T0;
+                    
+                }
+
                 if (k == 0 || k == Nz-1)
                 {
-                    lb.mixture[i][j][k].type = TYPE_P;
+                    lb.mixture[i][j][k].type = TYPE_A;
                 }
-                if (lb.mixture[i][j][k].type == TYPE_F || lb.mixture[i][j][k].type == TYPE_E)  // Fluid Domain
+                if (lb.mixture[i][j][k].type == TYPE_F)  // Fluid Domain
                 {
-                    lb.mixture[i][j][k].rho = rho0;
-                    lb.mixture[i][j][k].u = u_max;
+                    lb.mixture[i][j][k].p = T0;
+                    lb.mixture[i][j][k].u = 0;
                     lb.mixture[i][j][k].v = 0;
                     lb.mixture[i][j][k].w = 0;
                     lb.mixture[i][j][k].temp = T0;
                 }
-                if(lb.mixture[i][j][k].type == TYPE_S)
-                {
-                    lb.mixture[i][j][k].temp = T0;
-                }
+
             }
         }
     }
@@ -356,9 +364,9 @@ void main_setup() // Sos shock tube test case ----------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {   
-                    lb.mixture[i][j][k].p = smooth(2.0, 1.0, i, 0.5*Nx, 0.03);   
+                    lb.mixture[i][j][k].p = smooth(2.0, 1.0, i, 0.5*Nx, 0.3);   
                     // std::cout << " p : " << units.si_p(2.0) << std::endl;
-                    lb.mixture[i][j][k].temp = smooth(0.2, 0.1, i, 0.5*Nx, 0.03);   
+                    lb.mixture[i][j][k].temp = smooth(0.1, 0.1, i, 0.5*Nx, 0.3);   
                     if ((float)i/(float)Nx <= 0.5 )
                     {
                         lb.mixture[i][j][k].u = 0.0;
@@ -518,19 +526,19 @@ void main_setup() // SOD SHOCK TUBE WITH SI UNIT -------------------------------
 
 void main_setup() // Ternary Gas Diffusion --------------------------------------------------------
 {
-    int NX = 864; 
+    int NX = 1000; 
     int NY = 1; 
     int NZ = 1;
     
-    double si_len = 4.0E-4;   // [m]
+    double si_len = 5e-3;   // [m]
     double si_u_max = 1E+3; // [m/s]
-    double si_rho = 1.225;  // [kg/m^3]
+    double si_rho = 1.0;  // [kg/m^3]
     double si_temp = 300.0; // [K]
 
     units.set_m_kg_s(NX, VEL0, RHO0, 0.025, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
 
-    // std::vector<std::string> species = { "H2", "Ar" , "CH4"};
-    std::vector<std::string> species = { "AR" , "N2"};
+    std::vector<std::string> species = { "H2", "Ar" , "CH4"};
+    // std::vector<std::string> species = { "O2" , "H2"};
     
     LBM lb(NX, NY, NZ, species);
     lb.set_diffusionModel("Stefan-Maxwell");
@@ -557,16 +565,16 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
 
                 if (lb.mixture[i][j][k].type == TYPE_F)
                 {
-                    // lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.3);
-                    // lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.3);
-                    // lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.3);
+                    lb.species[0][i][j][k].X = smooth(0.491, 0.000, i, 0.5*Nx, 0.3);
+                    lb.species[1][i][j][k].X = smooth(0.509, 0.485, i, 0.5*Nx, 0.3);
+                    lb.species[2][i][j][k].X = smooth(0.000, 0.515, i, 0.5*Nx, 0.3);
 
                     // lb.species[0][i][j][k].X = smooth(0.491, 0.300, i, 0.5*Nx, 0.03);
                     // lb.species[1][i][j][k].X = smooth(0.209, 0.185, i, 0.5*Nx, 0.03);
                     // lb.species[2][i][j][k].X = smooth(0.300, 0.515, i, 0.5*Nx, 0.03);
 
-                    lb.species[0][i][j][k].X = smooth(1.0, 0.1, i, 0.5*Nx, 0.3);
-                    lb.species[1][i][j][k].X = smooth(0.1, 1.0, i, 0.5*Nx, 0.3);
+                    // lb.species[0][i][j][k].X = smooth(1.0, 0.0, i, 0.5*Nx, 0.3);
+                    // lb.species[1][i][j][k].X = smooth(0.0, 1.0, i, 0.5*Nx, 0.3);
 
                     
                     lb.mixture[i][j][k].p = smooth(1*units.p(Cantera::OneAtm), units.p(Cantera::OneAtm), i, 0.5*Nx, 0.3);      
@@ -581,7 +589,7 @@ void main_setup() // Ternary Gas Diffusion -------------------------------------
         }
     }
 
-    lb.run(400000,1000);
+    lb.run(40000000,1000);
 }
 
 
@@ -1051,6 +1059,85 @@ void main_setup() // 3D Taylor-Green Vortex (multicomponent) -------------------
     }
     
     lb.run(100,10);
+}
+
+#elif defined COUNTERFLOW_SINGLECOMP
+
+void main_setup() // Ternary Gas Diffusion --------------------------------------------------------
+{
+    int NX = 200; 
+    int NY = 400; 
+    int NZ = 1;
+    
+    double NU = 0.025;
+
+    double si_len = 1E-0;    // [m]
+    double si_u_max = 10.0;  // [m/s]
+    double si_rho = 1.225;  // [kg/m^3]
+    double si_temp = 300.0;// [K]
+
+    units.set_m_kg_s(NX, VEL0, RHO0, TEMP0, si_len, si_u_max, si_rho, si_temp); // setting the conversion factor 
+
+    LBM lb(NX, NY, NZ, NU);
+    int Nx = lb.get_Nx(); int Ny = lb.get_Ny(); int Nz = lb.get_Nz();
+
+    
+    #pragma omp parallel for
+    for(int i = 0; i < Nx ; ++i)
+    {
+        for(int j = 0; j < Ny; ++j)
+        {
+            for(int k = 0; k < Nz; ++k)
+            {
+                if ( k==0 || k==Nz-1) // set periodic boundary condition
+                {
+                    lb.mixture[i][j][k].type = TYPE_P;
+                }
+                
+                if (i==0){
+                    if(j > 0.1*Ny && j < 0.9*Ny){
+                        lb.mixture[i][j][k].type = TYPE_I;
+                        lb.mixture[i][j][k].p = 0.01;
+                        lb.mixture[i][j][k].temp = 0.01;
+                        lb.mixture[i][j][k].u = 0.005;
+                    }
+                    else lb.mixture[i][j][k].type = TYPE_FS;
+                }
+
+                if (i==Nx-1){;
+                    if(j > 0.1*Ny && j < 0.9*Ny){
+                        lb.mixture[i][j][k].type = TYPE_I;
+                        lb.mixture[i][j][k].p = 0.01;
+                        lb.mixture[i][j][k].temp = 0.01;
+                        lb.mixture[i][j][k].u = -0.005;
+                    }
+                    else lb.mixture[i][j][k].type = TYPE_FS;
+                }
+
+                if ( j==0 || j==Ny-1) 
+                {
+                    lb.mixture[i][j][k].type = TYPE_O;
+                    lb.mixture[i][j][k].p = 0.01;
+                    lb.mixture[i][j][k].temp = 0.01;
+                }
+
+                if (lb.mixture[i][j][k].type == TYPE_F)
+                {
+                    lb.mixture[i][j][k].p = 0.01;
+                    lb.mixture[i][j][k].temp = 0.01;
+                }
+
+                // if (lb.mixture[i][j][k].type == TYPE_I)
+                // {
+                //     lb.mixture[i][j][k].u = 0.001;
+                //     lb.mixture[i][j][k].p = 0.01;
+                //     lb.mixture[i][j][k].temp = 0.02;
+                // }
+            }
+        }
+    }
+
+    lb.run(1000,100);
 }
 
 #elif defined COUNTERFLOW_NONREACTIVE

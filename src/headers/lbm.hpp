@@ -55,8 +55,8 @@
             short type = TYPE_F;    // type of lattice (FLUID, SOLID, ... see setup for more)
             
             // ###### Momentum Kinetic Equation Parameter ######
-            double f[npop], fpc[npop];  // distribution function, distribution function post collistion  
-            double rho;                 // macroscopic quantity
+            double f[npop], fpc[npop] = {0.0};  // distribution function, distribution function post collistion  
+            double rho = 0.0;                 // macroscopic quantity
             double u = 0.0;          // velocity in x-direction
             double v = 0.0;          // velocity in y-direction
             double w = 0.0;          // velocity in z-direction
@@ -129,7 +129,7 @@
             // calculate equlibrium density
             double calculate_feq(int l, double rho, double velocity[], double theta,  double corr[]);
             double calculate_geq(int l, double rhoe, double eq_heat_flux[], double eq_R_tensor[][3], double theta);
-            void calculate_feq_geq(double f_tgt[], double g_tgt[], double rho_bb, double vel_tgt[], double temp_tgt);
+            void calculate_feq_geq(double f_tgt[], double g_tgt[], double rho_bb, double Y_bb[], double vel_tgt[], double temp_tgt);
 
             // initialize
             void Init();    // initialize equilibrium  
@@ -139,6 +139,7 @@
             void FD_species();
             
             void fill_BC();
+            void fill_FPC();
             void dirSlip(int l, int i, int j, int k, int &lp, int &ip, int &jp, int &kp);
                         
             // stream
